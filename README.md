@@ -70,19 +70,43 @@ React (5173) ──REST/WS──► FastAPI (8000)
 ```bash
 cd backend
 pip install -r requirements.txt
-pytest tests -q          # 56 tests: threshold logic, window math, SHAP formatting,
+pytest tests -q          # 64 tests: threshold logic, window math, SHAP formatting, trained-model,
                          # validation, PSV conversion + API integration flows
 ```
 
 Priority target (docs/09-testing-strategy.md §1): the comorbidity threshold contrast — see
 `tests/unit/test_threshold_logic.py` and `test_journey_b_diabetic_window_vs_nondiabetic_none`.
 
-## Loading your trained model
+## The trained model
 
-Drop the TFT export into `backend/checkpoints/` (see the [README there](backend/checkpoints/README.md)),
-set `SEPSIS_CHECKPOINT_PATH`, uncomment `torch` / `pytorch-forecasting` / `shap` /
-`lightgbm` in `backend/requirements.txt`, rebuild. Without a checkpoint the API runs a
-deterministic clinical surrogate so the entire demo works pre-training — startup never crashes on missing weights.
+The repo ships with a **trained sepsis model** (`backend/checkpoints/sepsis_xgboost.pkl`,
+AUROC ≈ 0.70 on PhysioNet-derived windowed vitals). It loads automatically at startup:
+`risk_score = P(sepsis)·100`, SHAP via native TreeSHAP, 6-hour trend projection.
+If the file is missing the API falls back to a deterministic clinical surrogate —
+startup never crashes on missing weights. To switch to a TFT later, see
+[backend/checkpoints/README.md](backend/checkpoints/README.md); training notebook in [`training/`](training/).
+
+The seed also loads **three real PhysioNet ICU cases** from the training data
+(`backend/data/sepsis_samples/`) as named demo patients — the trained model scores
+them with no hand-tuning: the genuinely-septic case alerts (risk ≈84), the
+pre-onset window stays quiet, and the never-septic control sits near 0.
+
+## Supabase (optional managed DB + auth)
+
+The stack runs fully offline by default (dockerized Postgres + local JWT auth).
+To move to Supabase instead:
+
+1. Create a project at [supabase.com](https://supabase.com) and copy its
+   connection string into `DATABASE_URL`.
+2. Apply the schema: `docker compose exec backend python apply_supabase_schema.py`
+3. Create the demo clinician in Authentication → Users (`doctor@mediq.local`).
+4. Fill `SUPABASE_URL` / `SUPABASE_ANON_KEY` (+ `SUPABASE_JWT_SECRET` for legacy
+   HS256 projects; newer projects verify via JWKS automatically).
+
+Login/refresh now proxy to Supabase Auth, API tokens are verified against it,
+and dashboard-invited teammates are auto-provisioned locally on first call.
+Leave the vars empty to go back to the offline stack — nothing else changes.
+Neo4j remains self-hosted via docker either way.
 
 ## Security posture (prototype scope)
 

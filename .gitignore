@@ -14,8 +14,11 @@ venv/
 # ---- ML artifacts & uploads (too big / machine-local) ----
 backend/checkpoints/*
 !backend/checkpoints/README.md
+!backend/checkpoints/sepsis_xgboost.pkl
+!backend/checkpoints/model_config.json
 backend/uploads/
 uploads/
+training_sepsis/
 *.pt
 *.ckpt
 *.lgbm
