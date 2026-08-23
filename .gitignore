@@ -1,0 +1,35 @@
+# ---- secrets & local config (never commit) ----
+.env
+.env.*
+!.env.example
+
+# ---- python ----
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# ---- ML artifacts & uploads (too big / machine-local) ----
+backend/checkpoints/*
+!backend/checkpoints/README.md
+backend/uploads/
+uploads/
+*.pt
+*.ckpt
+*.lgbm
+
+# ---- node / frontend build ----
+node_modules/
+dist/
+.vite/
+
+# ---- editors & OS ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ---- logs ----
+*.log
