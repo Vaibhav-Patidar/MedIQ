@@ -99,6 +99,7 @@ PATIENTS = [
                          "wbc": 10.5, "lactate": 1.8, "creatinine": 1.1,
                          "urine_output": 55},
         # Surrogate math lands at ~71.7 risk -> window at 55 (not 65), urgency HIGH
+        # (trained XGBoost model lands him at ~75.6, rising -> same outcome)
         "vitals_end": {"heart_rate": 118, "bp_systolic": 105, "bp_diastolic": 62,
                        "temperature": 39.2, "respiratory_rate": 26, "spo2": 96,
                        "wbc": 14.2, "lactate": 4.4, "creatinine": 1.5,
@@ -119,7 +120,10 @@ PATIENTS = [
                          "temperature": 37.8, "respiratory_rate": 20, "spo2": 98,
                          "wbc": 11.0, "lactate": 1.9, "creatinine": 1.0,
                          "urine_output": 50},
-        # ~57.3 risk -> below default 65 -> NO window (Journey B contrast)
+        # Trained-model behaviour: her trailing-window risk lands ~78 (nearly
+        # identical to Ramesh's) BUT her forecast is receding, so the provided
+        # detect_window (rising required) keeps her closed at the DEFAULT
+        # threshold 65 — the live Journey B contrast against Ramesh.
         "vitals_end": {"heart_rate": 114, "bp_systolic": 108, "bp_diastolic": 66,
                        "temperature": 38.8, "respiratory_rate": 25, "spo2": 96,
                        "wbc": 15.0, "lactate": 3.6, "creatinine": 1.35,
@@ -198,6 +202,126 @@ def seed_neo4j_clinicians(clinician_rows) -> None:
             "specialization": c.specialization, "is_available": bool(c.is_available),
             "current_patient_count": c.current_patient_count,
         })
+
+
+# ---------------------------------------------------------------------------
+# PhysioNet training-data samples (backend/data/sepsis_samples/): real ICU
+# hours from the dataset the sepsis model was trained on. Their vitals feed
+# the trained XGBoost directly — no hand-tuning, no manual threshold overrides.
+# ---------------------------------------------------------------------------
+SEPSIS_SAMPLES = [
+    {"file": "p016276.psv", "name": "Devika Menon",   # 75M case, febrile, septic at hour 81
+     "hours": 12, "assigned_to": "Dr. Rao", "predict": True},
+    {"file": "p002399.psv", "name": "Raghav Kulkarni",  # 75M case, septic at hour 79
+     "hours": 12, "assigned_to": "Dr. Iyer", "predict": True},
+    {"file": "p001583.psv", "name": "Meera Joshi",    # 59M case, never septic (stable control)
+     "hours": 12, "assigned_to": "Dr. Khan", "predict": True},
+]
+SAMPLES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "sepsis_samples")
+
+
+def seed_psv_samples(db, clinicians, created: dict) -> None:
+    """Load the chosen PhysioNet PSV files as named demo patients."""
+    import pandas as pd
+
+    from app.models.orm import PatientAssignment
+
+    now = utcnow()
+    for spec in SEPSIS_SAMPLES:
+        path = os.path.join(SAMPLES_DIR, spec["file"])
+        if not os.path.exists(path):
+            print(f"[seed] skipping {spec['file']} (sample file missing)")
+            continue
+        df = pd.read_csv(path, sep="|")
+        tail = df.tail(spec["hours"]).reset_index(drop=True)
+
+        patient = Patient(
+            name=spec["name"],
+            age=int(df["Age"].iloc[0]),
+            sex="M" if int(df["Gender"].iloc[0]) == 1 else "F",
+            blood_type=None,
+            admission_date=now - timedelta(hours=len(tail)),
+            ward="HDU-1", bed_number=str(10 + len(created)),
+        )
+        db.add(patient)
+        db.flush()
+
+        ever_septic = int(df["SepsisLabel"].max()) == 1
+        db.add(PatientDisease(
+            patient_id=patient.patient_id,
+            disease_name="Sepsis" if ever_septic else "Post-operative observation",
+            icd_code="A41.9" if ever_septic else "Z48.89",
+            disease_type="critical" if ever_septic else "chronic",
+            diagnosed_at=now - timedelta(hours=len(tail)),
+            is_active=True,
+        ))
+
+        assignee = clinicians[spec["assigned_to"]]
+        db.add(PatientAssignment(patient_id=patient.patient_id,
+                                 clinician_id=assignee.clinician_id))
+
+        settings = get_settings()
+        if neo4j.enabled:
+            neo4j.run(cypher.MERGE_PATIENT, {
+                "patient_id": str(patient.patient_id), "name": patient.name,
+                "age": patient.age, "sex": patient.sex, "ward": patient.ward,
+                "bed_number": patient.bed_number, "blood_type": None,
+                "admission_date": patient.admission_date.isoformat(),
+            })
+            neo4j.run(cypher.MERGE_DISEASE_AND_LINK % "HAS_CONDITION", {
+                "name": ("Sepsis" if ever_septic else "Post-operative observation"),
+                "icd_code": None, "type": "critical" if ever_septic else "chronic",
+                "specialty": _specialty("Sepsis"),
+                "patient_id": str(patient.patient_id),
+            })
+            neo4j.run(cypher.ASSIGN_PATIENT_TO_CLINICIAN, {
+                "patient_id": str(patient.patient_id),
+                "clinician_id": str(assignee.clinician_id),
+            })
+
+        def _num(row, col):
+            v = row.get(col)
+            return None if pd.isna(v) else float(v)
+
+        end_time = now
+        for i, row in tail.iterrows():
+            reading = VitalReading(
+                patient_id=patient.patient_id,
+                timestamp=end_time - timedelta(hours=len(tail) - 1 - i),
+                heart_rate=int(_num(row, "HR")) if _num(row, "HR") is not None else None,
+                bp_systolic=int(_num(row, "SBP")) if _num(row, "SBP") is not None else None,
+                bp_diastolic=int(_num(row, "DBP")) if _num(row, "DBP") is not None else None,
+                temperature=_num(row, "Temp"),
+                respiratory_rate=int(_num(row, "Resp")) if _num(row, "Resp") is not None else None,
+                spo2=_num(row, "O2Sat"),
+                wbc=_num(row, "WBC"),
+                lactate=_num(row, "Lactate"),
+                creatinine=_num(row, "Creatinine"),
+                urine_output=None,
+            )
+            db.add(reading)
+            db.flush()
+            if settings.use_neo4j:
+                neo4j.run(cypher.MERGE_VITAL_READING, {
+                    "patient_id": str(patient.patient_id),
+                    "reading_id": str(reading.reading_id),
+                    "timestamp": reading.timestamp.isoformat(),
+                    "heart_rate": reading.heart_rate,
+                    "bp_systolic": reading.bp_systolic,
+                    "bp_diastolic": reading.bp_diastolic,
+                    "temperature": reading.temperature,
+                    "respiratory_rate": reading.respiratory_rate,
+                    "spo2": reading.spo2, "wbc": reading.wbc,
+                    "lactate": reading.lactate,
+                    "creatinine": reading.creatinine,
+                    "urine_output": None,
+                })
+
+        created[f"sample:{spec['file']}"] = {
+            "spec": {"key": f"sample:{spec['file']}", "name": spec["name"],
+                     "predict": spec["predict"]},
+            "patient": patient,
+        }
 
 
 def main() -> None:
@@ -351,6 +475,9 @@ def main() -> None:
 
             created[spec["key"]] = {"spec": spec, "patient": patient}
 
+        # Real PhysioNet training samples as additional demo patients
+        seed_psv_samples(db, clinicians, created)
+
         # Hardcoded SIMILAR_TO example (PRD F7/F8 explicitly allows one)
         if neo4j.enabled:
             neo4j.run(cypher.MERGE_SIMILAR_TO, {
@@ -410,6 +537,18 @@ def main() -> None:
                 print(f"  {created[key]['spec']['name']:<14} risk={r['risk_score']:>5}"
                       f"  threshold={r['threshold_used']}  window_open={r['window_open']}"
                       f"  ({r.get('threshold_adjustment_reason') or 'default'})")
+        print("-" * 74)
+        print("PhysioNet training-data cases (trained model, no manual overrides):")
+        for key, entry in created.items():
+            if not key.startswith("sample:"):
+                continue
+            r = results.get(key, {})
+            if "error" in r:
+                print(f"  {entry['spec']['name']:<14} ERROR {r['error']}")
+            else:
+                print(f"  {entry['spec']['name']:<14} risk={r['risk_score']:>5}"
+                      f"  threshold={r['threshold_used']}  window_open={r['window_open']}"
+                      f"  urgency={r.get('urgency')}")
         print("=" * 74)
     finally:
         db.close()
