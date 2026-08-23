@@ -116,9 +116,5 @@ except `/api/health`; parameterized SQL/Cypher only; Pydantic validation incl. c
 bounds; upload extension+size limits. Object-level auth simplified to “any authenticated
 clinician” for the demo — flagged gap, see `docs/08-security-spec.md` §4.
 
-## Team ByteSlay
-
-Bhumika Jain (Frontend) · Vaibhav Patidar (ML) · Anirudh Tandon (Backend) · Aryan Sharma (ML/MRI) · Parth Agarwal (Database) · Kamal Kumar Kasaudhan (DevOps)
-
 📄 **Full project map & build walkthrough:** [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)
 🧩 **Frontend agent handover (API contract, shapes, WS events):** [FRONTEND_INTEGRATION_GUIDE.md](FRONTEND_INTEGRATION_GUIDE.md)
