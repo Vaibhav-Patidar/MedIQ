@@ -39,12 +39,8 @@ services:
       retries: 5
       start_period: 20s
 
-  frontend:
-    build: ./frontend             # placeholder scaffold — swap for the real React app
-    depends_on:
-      - backend
-    ports:
-      - "5173:5173"
+# The React frontend lives in its own repository and runs separately
+# (npm run dev on :5173). CORS on the backend already allows that origin.
 
 volumes:
   neo4jdata:

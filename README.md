@@ -34,7 +34,7 @@ Then in the Supabase dashboard (**Authentication → Users → Add user**) creat
 | http://localhost:8000/docs | FastAPI Swagger UI (all endpoints) |
 | http://localhost:8000/api/health | Health check `{status, postgres, neo4j}` |
 | http://localhost:7474 | Neo4j browser (ontology graph) |
-| http://localhost:5173 | Frontend placeholder (React app mounts here) |
+| http://localhost:8000/api/health | Health check `{status, postgres, neo4j}` |
 
 **Seeded login:** `doctor@mediq.local` (password in `.env` → `SEED_CLINICIAN_PASSWORD`, default `mediq-demo`).
 
@@ -56,7 +56,7 @@ The seed script prints the Journey B contrast (diabetic vs non-diabetic patient 
 ## Architecture
 
 ```
-React (5173) ──REST/WS──► FastAPI (8000)
+React (5173, separate repo) ──REST/WS──► FastAPI (8000)
                             ├── PostgreSQL ── source of truth (patients, vitals, snapshots, windows…)
                             ├── Neo4j ────── ontology traversal (graph view, similar patients,
                             │                 clinician routing) [postgres_fk fallback: ADR-002]

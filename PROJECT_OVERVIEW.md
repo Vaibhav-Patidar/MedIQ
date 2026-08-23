@@ -114,7 +114,9 @@ mediq/
 │                                      escalation routing · alerts+acknowledge · interventions ·
 │                                      patients CRUD+graph · WS push/rejection · stubs · health
 │
-├── frontend/                  placeholder scaffold (nginx page); React app replaces later
+├── training/                  TFT training notebook (model provenance)
+│
+├── (frontend)                 separate repository — integrates via FRONTEND_INTEGRATION_GUIDE.md
 └── docs/                      the binding spec set (01-PRD … 12-README) — build to these
 ```
 
@@ -222,7 +224,7 @@ Run: `docker compose exec backend pytest tests -q`
 | `SEPSIS_CHECKPOINT_PATH` | trained bundle (`/app/checkpoints/sepsis_xgboost.pkl`) |
 | `MRI_UPLOAD_DIR` / `MRI_MAX_UPLOAD_MB` | scan-stub storage + size cap |
 | `SEED_CLINICIAN_EMAIL` / `SEED_CLINICIAN_PASSWORD` | demo login created by seed script |
-| `CORS_ORIGINS`, `LOG_LEVEL`, `VITE_*` | misc / frontend placeholders |
+| `CORS_ORIGINS`, `LOG_LEVEL` | misc (CORS already allows the frontend dev origin :5173) |
 
 ### Supabase mode
 
@@ -261,7 +263,7 @@ no threshold overrides** — so they showcase the trained model on real data:
 3. **schema.sql order fix**: `clinicians` moved before `interventions` (FK forward-reference bug in the spec doc; table definitions unchanged).
 4. **409 body superset**: envelope keys AND flat `hours_available`/`hours_required`.
 5. **Supabase auth additions** (opt-in): additive `refresh_token` response field; `/api/auth/refresh` accepts a body in Supabase mode; auto-provisioned local profiles for Supabase-authenticated users. Local flow unchanged when unset.
-6. Frontend service is a placeholder scaffold; analytics/MRI/Alzheimer's are stubs by design (ADR-001).
+6. Analytics/MRI/Alzheimer's are stubs by design (ADR-001). The React frontend lives in a separate repository; compose runs backend + Neo4j only.
 7. The full `training_sepsis/` dataset is git-ignored (161MB / 20k files); only three small sample PSVs are committed under `backend/data/sepsis_samples/`.
 
 ## 8. Out of scope (per PRD §8 — not built, on purpose)
