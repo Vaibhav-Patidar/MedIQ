@@ -20,6 +20,7 @@ A diabetic ICU patient crosses risk **55** and an intervention window opens with
 git clone git@github.com:Vaibhav-Patidar/MedIQ.git
 cd MedIQ
 cp .env.example .env        # fill in local secrets (JWT_SECRET etc.)
+# ↳ every value explained in WHERE_TO_FIND_ENV_VALUES.md
 
 docker compose up --build   # postgres + neo4j + backend + frontend
 docker compose exec backend python seed_data.py   # synthetic ontology + vitals + live predictions

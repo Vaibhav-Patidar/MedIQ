@@ -6,13 +6,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    # PostgreSQL
-    database_url: str = "postgresql://mediq:mediq@localhost:5432/mediq"
+    # PostgreSQL (defaults match the docker-compose service names)
+    database_url: str = "postgresql://mediq:change-me-local-only@postgres:5432/mediq"
 
-    # Neo4j
-    neo4j_url: str = "bolt://localhost:7687"
+    # Neo4j (defaults match the docker-compose service name)
+    neo4j_url: str = "bolt://neo4j:7687"
     neo4j_user: str = "neo4j"
-    neo4j_password: str = "mediq"
+    neo4j_password: str = "change-me-local-only"
 
     # ADR-002: 'neo4j' (default) or 'postgres_fk' fallback. Single flag flips
     # the ontology layer with no code changes.
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     sepsis_checkpoint_path: str | None = "/app/checkpoints/sepsis_xgboost.pkl"
 
     # MRI upload stub
-    mri_upload_dir: str = "./uploads"
+    mri_upload_dir: str = "/data/uploads"  # compose mounts the `uploads` volume here
     mri_max_upload_mb: int = 200
 
     # Seed login

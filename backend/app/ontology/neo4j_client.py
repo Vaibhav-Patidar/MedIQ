@@ -48,7 +48,14 @@ class Neo4jClient:
                 self._driver = None
 
     def _session(self):
-        if not self.enabled or self._driver is None:
+        if not self.enabled:
+            return None
+        # --- GLUE --- lazy reconnect: a failed startup attempt (e.g. Neo4j
+        # still booting after a recreate) must not disable the graph layer for
+        # the process lifetime.
+        if self._driver is None:
+            self.connect()
+        if self._driver is None:
             return None
         return self._driver.session()
 
