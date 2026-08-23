@@ -11,42 +11,48 @@ Legend: 🔴 **required** to boot · 🟡 optional (defaults are fine) · ⚪ le
 
 | # | Variable | Required? | Where it comes from |
 |---|----------|-----------|---------------------|
-| 1 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | 🔴 | You choose them (local) — or Supabase DB credentials |
-| 2 | `DATABASE_URL` | 🔴 | Assembled from row 1 — or copied from Supabase |
-| 3 | `NEO4J_AUTH` + `NEO4J_PASSWORD` | 🔴 | You choose them (keep the two in sync) |
-| 4 | `JWT_SECRET` | 🔴 | Generate it yourself (command below) |
-| 5 | `ONTOLOGY_BACKEND` | 🟡 | Your choice: `neo4j` or `postgres_fk` |
-| 6 | `SUPABASE_URL` / `SUPABASE_ANON_KEY` | ⚪ | Supabase dashboard → Project Settings → API |
-| 7 | `SUPABASE_JWT_SECRET` | ⚪ | Supabase dashboard → Project Settings → API → JWT Settings (legacy projects only) |
-| 8 | `SEED_CLINICIAN_PASSWORD` | 🟡 | You choose — becomes the demo login password |
+| 1 | `DATABASE_URL` | 🔴 | Supabase dashboard → Project Settings → Database → Connection string (Session pooler) |
+| 2 | `SUPABASE_URL` / `SUPABASE_ANON_KEY` | 🔴 | Supabase dashboard → Project Settings → API |
+| 3 | `SUPABASE_JWT_SECRET` | 🟡 | Same API page → JWT Settings (legacy HS256 projects only; blank = JWKS) |
+| 4 | `NEO4J_AUTH` + `NEO4J_PASSWORD` | 🔴 | You choose them (keep the two in sync) — Neo4j runs in docker, no install needed |
+| 5 | `JWT_SECRET` | 🔴 | Generate it yourself (command below) |
+| 6 | `ONTOLOGY_BACKEND` | 🟡 | Your choice: `neo4j` or `postgres_fk` |
+| 7 | `SEED_CLINICIAN_PASSWORD` | 🟡 | You choose — the demo user itself is created in the Supabase Auth dashboard |
+
+> **Local Postgres was removed from docker-compose.** Supabase is the only
+> database now. The backend container reads `.env` at creation time — after
+> editing it run: `docker compose up -d --force-recreate backend`
 
 ---
 
-## 1–2. PostgreSQL
+## 1–2. Supabase (database + auth — the only datastore now)
 
-**Local docker mode (default):** pick any db/user/password and keep them
-consistent across the four lines. `DATABASE_URL` is assembled as:
+Create a project at [supabase.com](https://supabase.com), then:
 
-```
-postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@postgres:5432/<POSTGRES_DB>
-```
+| Value | Exact location in the Supabase dashboard |
+|---|---|
+| `SUPABASE_URL` | **Project Settings → API → Project URL** (`https://<ref>.supabase.co`) |
+| `SUPABASE_ANON_KEY` | **Project Settings → API → Project API keys → anon/publishable key** |
+| `SUPABASE_JWT_SECRET` | **Project Settings → API → JWT Settings → JWT Secret** — legacy HS256 projects; newer ones verify via JWKS automatically (leave blank) |
+| `DATABASE_URL` | **Project Settings → Database → Connection string → Session pooler** (`:5432/postgres`) |
 
-The host is literally `postgres` — that's the compose service name, not localhost.
-
-**Supabase mode:** create a project at [supabase.com](https://supabase.com), then
-→ **Project Settings → Database → Connection string → URI** (Session mode, port 5432).
-It looks like:
-
-```
-postgresql://postgres.<project-ref>:<your-db-password>@aws-0-<region>.pooler.supabase.com:5432/postgres
-```
-
-Paste that into `DATABASE_URL` (and set `POSTGRES_PASSWORD` to your Supabase DB
-password for reference). Then push the schema:
+Then, in order:
 
 ```bash
-docker compose up -d neo4j backend      # postgres service not needed in this mode
-docker compose exec backend python apply_supabase_schema.py
+docker compose up -d --force-recreate backend        # load new .env
+docker compose exec backend python apply_supabase_schema.py   # create tables
+```
+
+Create the demo clinician (**Authentication → Users → Add user → Create new user**):
+- Email `doctor@mediq.local`, password = your `SEED_CLINICIAN_PASSWORD`
+- ✅ tick **Auto Confirm User** (dashboard creation bypasses the email MX
+  validation that blocks `.local` addresses via public signup)
+
+Finally seed clinical data and lock the Data API:
+
+```bash
+docker compose exec backend python seed_data.py
+docker compose exec backend psql "$DATABASE_URL" -f supabase_rls.sql   # or paste into SQL editor
 ```
 
 ## 3. Neo4j

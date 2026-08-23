@@ -210,8 +210,8 @@ Run: `docker compose exec backend pytest tests -q`
 
 | Var | Purpose |
 |---|---|
-| `DATABASE_URL` | Postgres DSN — dockerized by default, or a Supabase pooler URL (managed mode) |
-| `SUPABASE_URL` / `SUPABASE_ANON_KEY` | when both set, auth proxies to Supabase (login/refresh; tokens verified via JWKS or HS256) |
+| `DATABASE_URL` | Postgres DSN — **Supabase pooler URL (current deployment)**; dockerized postgres removed from compose |
+| `SUPABASE_URL` / `SUPABASE_ANON_KEY` | auth proxies to Supabase (login/refresh; tokens verified via JWKS or HS256) — active |
 | `SUPABASE_JWT_SECRET` | legacy HS256 projects only; leave blank for newer asymmetric-key projects |
 | `NEO4J_URL` / `NEO4J_USER` / `NEO4J_PASSWORD` / `NEO4J_AUTH` | graph store (keep AUTH and PASSWORD in sync) |
 | `ONTOLOGY_BACKEND` | `neo4j` (default) or `postgres_fk` — ADR-002 one-flag fallback |

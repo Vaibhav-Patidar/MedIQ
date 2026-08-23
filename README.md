@@ -14,17 +14,20 @@ A diabetic ICU patient crosses risk **55** and an intervention window opens with
 
 ## Quick start
 
-**Prereqs:** Docker + Docker Compose
+**Prereqs:** Docker + Docker Compose + a free [Supabase](https://supabase.com) project
 
 ```bash
 git clone git@github.com:Vaibhav-Patidar/MedIQ.git
 cd MedIQ
-cp .env.example .env        # fill in local secrets (JWT_SECRET etc.)
-# ↳ every value explained in WHERE_TO_FIND_ENV_VALUES.md
+cp .env.example .env        # fill in Supabase values — guide: WHERE_TO_FIND_ENV_VALUES.md
 
-docker compose up --build   # postgres + neo4j + backend + frontend
-docker compose exec backend python seed_data.py   # synthetic ontology + vitals + live predictions
+docker compose up --build
+docker compose exec backend python apply_supabase_schema.py   # create tables in Supabase
+docker compose exec backend python seed_data.py               # demo data + live predictions
 ```
+
+Then in the Supabase dashboard (**Authentication → Users → Add user**) create
+`doctor@mediq.local` with your `SEED_CLINICIAN_PASSWORD` (✅ Auto Confirm).
 
 | URL | What |
 |---|---|
@@ -92,22 +95,22 @@ The seed also loads **three real PhysioNet ICU cases** from the training data
 them with no hand-tuning: the genuinely-septic case alerts (risk ≈84), the
 pre-onset window stays quiet, and the never-septic control sits near 0.
 
-## Supabase (optional managed DB + auth)
+## Supabase (managed DB + auth — the default setup)
 
-The stack runs fully offline by default (dockerized Postgres + local JWT auth).
-To move to Supabase instead:
+Supabase **is** the database and auth provider; no local Postgres runs.
 
 1. Create a project at [supabase.com](https://supabase.com) and copy its
-   connection string into `DATABASE_URL`.
+   connection string into `DATABASE_URL` in `.env`.
 2. Apply the schema: `docker compose exec backend python apply_supabase_schema.py`
-3. Create the demo clinician in Authentication → Users (`doctor@mediq.local`).
+3. Create the demo clinician in Authentication → Users (`doctor@mediq.local`,
+   ✅ Auto Confirm).
 4. Fill `SUPABASE_URL` / `SUPABASE_ANON_KEY` (+ `SUPABASE_JWT_SECRET` for legacy
    HS256 projects; newer projects verify via JWKS automatically).
 
-Login/refresh now proxy to Supabase Auth, API tokens are verified against it,
+Login/refresh proxy to Supabase Auth, API tokens are verified against it,
 and dashboard-invited teammates are auto-provisioned locally on first call.
-Leave the vars empty to go back to the offline stack — nothing else changes.
-Neo4j remains self-hosted via docker either way.
+Enable RLS deny-all with `backend/supabase_rls.sql` so the auto Data API
+exposes nothing. Neo4j remains self-hosted via docker either way.
 
 ## Security posture (prototype scope)
 
