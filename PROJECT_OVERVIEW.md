@@ -1,8 +1,10 @@
 # MedIQ — Project Overview & Code Map
 
 **What this document is:** the single place that says *what is where*, *what is done*,
-and *how the whole system fits together*. Companion to `README.md` (quick start) and
-the binding spec set in `docs/` (01–12).
+and *how the whole system fits together* — current as of the final build.
+Companions: `README.md` (quick start) · `FRONTEND_INTEGRATION_GUIDE.md` (API contract
+for the React agent) · `WHERE_TO_FIND_ENV_VALUES.md` (secrets guide) · `docs/01–12`
+(binding specs).
 
 Status legend: ✅ done & verified · 🟡 stub per spec · ⛔ out of scope (PRD §8)
 
@@ -11,244 +13,241 @@ Status legend: ✅ done & verified · 🟡 stub per spec · ⛔ out of scope (PR
 ## 1. What MedIQ is
 
 A sepsis early-warning prototype for Smart India Hackathon 2026 (Team ByteSlay).
-ICU vitals stream in → once ≥2h of history exists, a risk score + 6-hour trajectory
-is produced → when risk crosses a **patient-specific threshold**, an intervention
-window opens with a countdown → SHAP shows which vitals are driving it → the doctor
-logs the intervention → everything is mirrored into an ontology graph.
+ICU vitals stream in → once ≥2h of history exists, a **trained XGBoost model**
+produces a risk score + 6-hour trajectory → when risk crosses a **patient-specific
+ontology-adjusted threshold**, an intervention window opens with a countdown →
+SHAP shows which vitals are driving it → the doctor logs the intervention →
+everything mirrors into an ontology graph.
 
-The demo's core claim (PRD F4): **a diabetic patient opens a window at risk >55
-while a non-diabetic patient at ~57 stays silent (default threshold 65).**
+The demo's core claim (PRD F4): **a diabetic patient opens a window at threshold 55
+while a non-diabetic patient at nearly the same score stays silent (default 65).**
+
+## 2. Final architecture
+
+```
+React + TS (:5173, separate repo — see FRONTEND_INTEGRATION_GUIDE.md)
+        │ REST /api/*  (Bearer JWT issued by Supabase Auth)
+        │ WS    /ws/*  (same token, handshake-gated)
+        ▼
+FastAPI :8000  (docker compose)
+├── api/         routers: auth · patients · vitals · predictions · alerts ·
+│                interventions · clinicians · scans · analytics · health · ws
+├── ml/          ★ trained XGBoost model (risk = P(sepsis)·100) · native TreeSHAP ·
+│                provided threshold/window/urgency algorithm · surrogate fallback
+├── ontology/    Neo4j traversals ⇄ postgres_fk fallback (identical /graph JSON)
+└── services/    prediction pipeline · clinician escalation routing
+        │                          │
+        ▼                          ▼
+Supabase Postgres             Neo4j 5 Community (docker)
+(source of truth + hosted     ontology traversal; no managed graph DB exists,
+ GoTrue auth; RLS deny-all    which is why docker stays in the stack)
+ enabled on all tables)
+```
+
+**Compose runs exactly two services:** `neo4j` + `backend`. There is no local
+Postgres container — Supabase is the sole database — and the React frontend lives
+in its own repository.
 
 ---
 
-## 2. Repository map
+## 3. Repository map
 
 ```
 mediq/
-├── README.md                  GitHub front page: quick start, features, architecture
-├── PROJECT_OVERVIEW.md        ← you are here
-├── docker-compose.yml         postgres + neo4j + backend + frontend (+ volumes, healthchecks)
-├── .env.example               every env var documented; copy to .env (git-ignored)
-├── .gitignore                 hides .env, uploads, caches… (model bundle IS committed)
+├── README.md                     GitHub front page (quick start, features)
+├── PROJECT_OVERVIEW.md           ← you are here
+├── FRONTEND_INTEGRATION_GUIDE.md handover doc for the React developer/agent
+├── WHERE_TO_FIND_ENV_VALUES.md   where every .env value comes from
+├── docker-compose.yml            neo4j + backend only (+ healthchecks, volumes)
+├── .env.example                  required values only; optional overrides commented
+├── .gitignore                    hides .env, training_sepsis/, uploads, caches…
+│
+├── docs/                         binding spec set (01-PRD … 12-README)
 ├── training/
-│   └── mediq_tft_resume_training_v2.ipynb    TFT training notebook (model provenance)
+│   └── mediq_tft_resume_training_v2.ipynb      TFT training notebook (provenance)
 │
-├── backend/
-│   ├── Dockerfile             python:3.11-slim, uvicorn, curl for healthcheck
-│   ├── requirements.txt       runtime deps (+ commented heavy torch/shap/lgbm stack)
-│   ├── pytest.ini             pytest config (testpaths=tests)
-│   ├── schema.sql             EXACT DDL from docs/06-database-spec.md §1, applied by the
-│   │                          postgres container init script (ADR-007: no Alembic)
-│   ├── seed_data.py           synthetic ontology + vitals loader; prints Journey B contrast
-│   ├── checkpoints/
-│   │   ├── sepsis_xgboost.pkl         ★ TRAINED MODEL (committed): XGBClassifier on
-│   │   │                              windowed mean/std stats of 7 vitals, AUROC ≈ 0.70
-│   │   ├── model_config.json          ★ feature list, decision threshold (0.599), horizon
-│   │   └── README.md                  how loading works + how to swap in a TFT later
-│   │
-│   ├── app/
-│   │   ├── main.py                    app factory: routers, CORS, error envelope handlers,
-│   │   │                              request-log middleware, lifespan (DB + model init)
-│   │   ├── db.py                      SQLAlchemy engine/session factory + postgres ping
-│   │   │
-│   │   ├── core/
-│   │   │   ├── config.py              pydantic-settings (env/.env loading), ONTOLOGY_BACKEND flag
-│   │   │   ├── security.py            JWT issue/verify (PyJWT) + bcrypt hashing
-│   │   │   ├── errors.py              ApiError hierarchy + {error,message,details} envelope
-│   │   │   ├── logging_config.py      stdout logging setup
-│   │   │   ├── logging_middleware.py  per-request JSON logs (method/path/status/latency)
-│   │   │   └── websocket.py           in-process ConnectionManager (loop-safe publish)
-│   │   │
-│   │   ├── models/
-│   │   │   ├── orm.py                 SQLAlchemy models == schema.sql (GUID/JSONB portability)
-│   │   │   └── schemas.py             Pydantic request/response shapes == docs/05-api-spec.md
-│   │   │
-│   │   ├── ml/
-│   │   │   ├── inference.py           ★ PROVIDED algorithm integrated (canonical copy —
-│   │   │   │                          the original root files were merged into this and
-│   │   │   │                          removed): get_threshold / detect_window /
-│   │   │   │                          compute_urgency / SepsisPredictor / predict_sepsis.
-│   │   │   │                          Modes: 'xgboost' (trained bundle, committed),
-│   │   │   │                          'tft' (checkpoint + torch stack), 'surrogate'
-│   │   │   │                          (deterministic fallback). GLUE additions marked
-│   │   │   │                          in-file: guarded imports, XGB window-stats +
-│   │   │   │                          native TreeSHAP explain, preprocessing, PSV
-│   │   │   └── sepsis_route.py        ★ PROVIDED route skeleton, TODOs implemented:
-│   │   │                              GET /api/patients/{id}/predictions/sepsis with real
-│   │   │                              DB lookups + persistence + WS push + 409 contract
-│   │   │
-│   │   ├── services/
-│   │   │   ├── prediction.py          pipeline glue: ML context from Postgres (age/is_diabetic/
-│   │   │   │                          previous risk), sequence building, snapshot persistence,
-│   │   │   │                          window create/refresh/close, countdown stabilization,
-│   │   │   │                          WebSocket events (window_opened/closed/escalated)
-│   │   │   └── alert_routing.py       assigned-clinician check → escalate to next available of
-│   │   │                              matching specialty (Neo4j Cypher or SQL), reassignment
-│   │   │
-│   │   ├── ontology/
-│   │   │   ├── cypher.py              ALL Cypher (parameterized only) incl. the three spec patterns
-│   │   │   ├── neo4j_client.py        driver wrapper; no-ops when backend != neo4j
-│   │   │   └── graph_service.py       /graph via Neo4j traversal OR Postgres-FK joins (ADR-002),
-│   │   │                              identical JSON either way; disease→specialty routing map
-│   │   │
-│   │   └── api/
-│   │       ├── deps.py                bearer-token auth dependency + WS token check
-│   │       ├── auth.py                POST login/refresh/logout
-│   │       ├── patients.py            list/create/detail/update + /graph
-│   │       ├── vitals.py              POST (clinical bounds, ≥2h trigger, WS push, bg inference),
-│   │       │                          GET list/latest (12h ascending)
-│   │       ├── predictions.py         includes sepsis_route router + alzheimers stub + history
-│   │       ├── alerts.py              GET /api/alerts/active (sorted), patient windows, acknowledge
-│   │       ├── interventions.py       create / outcome update / list (Postgres row + Neo4j node)
-│   │       ├── clinicians.py          list + availability flip (drives live escalation demos)
-│   │       ├── scans.py               MRI upload stub (.nii/.nii.gz/.dcm + size cap, 'pending')
-│   │       ├── analytics.py           three empty-array stubs [HACKATHON: optional]
-│   │       ├── health.py              GET /api/health {status, postgres, neo4j}
-│   │       └── ws.py                   WS /ws/alerts and /ws/patients/{id}/vitals (token-gated)
-│   │
-│   └── tests/
-│       ├── conftest.py                env isolation (sqlite + postgres_fk), seeded fixtures
-│       ├── unit/                      thresholds · window math · predict_sepsis orchestration ·
-│       │                              SHAP formatting · Pydantic clinical bounds · PSV conversion
-│       └── integration/               auth envelopes · trigger/no-trigger · Journey B contrast ·
-│                                      escalation routing · alerts+acknowledge · interventions ·
-│                                      patients CRUD+graph · WS push/rejection · stubs · health
-│
-├── training/                  TFT training notebook (model provenance)
-│
-├── (frontend)                 separate repository — integrates via FRONTEND_INTEGRATION_GUIDE.md
-└── docs/                      the binding spec set (01-PRD … 12-README) — build to these
+└── backend/
+    ├── Dockerfile                python:3.11-slim, uvicorn, curl for healthcheck
+    ├── requirements.txt          runtime deps incl. xgboost>=3.2,<4; torch/shap/
+    │                             lightgbm stay commented until a TFT checkpoint lands
+    ├── pytest.ini
+    ├── schema.sql                DDL == docs/06-database-spec.md §1 (order fix noted);
+    │                             pushed to Supabase via apply_supabase_schema.py
+    ├── apply_supabase_schema.py  idempotent schema push to any Postgres target
+    ├── supabase_rls.sql          deny-all RLS on every table (locks the auto Data API;
+    │                             ALREADY applied to the live project)
+    ├── seed_data.py              demo dataset loader; prints Journey B contrast and
+    │                             PhysioNet-case outcomes; wipes & reseeds deterministically
+    ├── checkpoints/
+    │   ├── sepsis_xgboost.pkl    ★ TRAINED MODEL (committed): XGBClassifier over
+    │   │                         trailing {HR,O2Sat,Temp,SBP,MAP,DBP,Resp}_mean/_std
+    │   ├── model_config.json     ★ features, decision threshold 0.599, horizon 6, AUROC
+    │   └── README.md             how loading works + how to swap in a TFT later
+    ├── data/sepsis_samples/      three real PhysioNet ICU stays (committed), used by seed
+    ├── scripts/
+    │   ├── final_check.py        46-assertion live-API sweep across every endpoint
+    │   └── websocket_probe.py    real-WS push test driven by an actual septic case
+    │
+    └── app/
+        ├── main.py               app factory: routers, CORS, error-envelope handlers,
+        │                         request-log middleware, lifespan (DB + model init)
+        ├── db.py                 SQLAlchemy engine/session factory + postgres ping
+        ├── core/
+        │   ├── config.py         pydantic-settings; ONTOLOGY_BACKEND flag; Supabase settings
+        │   ├── security.py       local JWT issue/verify (fallback flow) + bcrypt hashing
+        │   ├── supabase.py       GoTrue login/refresh proxy + JWT verify (HS256 or JWKS)
+        │   ├── errors.py         ApiError hierarchy + {error,message,details} envelope
+        │   ├── logging_config.py / logging_middleware.py   structured stdout logs
+        │   └── websocket.py      in-process ConnectionManager (loop-safe publish)
+        ├── models/
+        │   ├── orm.py            SQLAlchemy models == schema.sql (GUID/JSONB portable)
+        │   └── schemas.py        Pydantic shapes == docs/05-api-spec.md
+        ├── ml/
+        │   ├── inference.py      ★ PROVIDED algorithm integrated verbatim
+        │   │                     (get_threshold / detect_window / compute_urgency /
+        │   │                     predict_sepsis / SepsisPredictor / FEATURE_META).
+        │   │                     Modes: 'xgboost' (trained bundle — ACTIVE),
+        │   │                     'tft' (checkpoint + torch stack), 'surrogate'
+        │   │                     (deterministic fallback). GLUE additions marked in-file.
+        │   └── sepsis_route.py   ★ PROVIDED route skeleton, TODOs implemented:
+        │                         GET /api/patients/{id}/predictions/sepsis end-to-end
+        ├── services/
+        │   ├── prediction.py     pipeline: ML context, sequence building, snapshot
+        │   │                     persistence, window lifecycle, countdown stabilization,
+        │   │                     WebSocket events (window_opened/closed/escalated)
+        │   └── alert_routing.py  escalation to next available clinician of matching specialty
+        ├── ontology/
+        │   ├── cypher.py         ALL Cypher (parameterized only)
+        │   ├── neo4j_client.py   driver wrapper; lazy reconnect; no-ops in fk mode
+        │   └── graph_service.py  /graph identical JSON from either backend (ADR-002)
+        └── api/
+            ├── deps.py           bearer auth (Supabase-or-local) + WS token check
+            ├── auth.py           login/refresh proxy + local fallback, logout
+            ├── patients.py       list/create/detail/update + /graph
+            ├── vitals.py         POST (bounds, ≥2h trigger, bg inference) · GET/latest
+            ├── predictions.py    includes sepsis_route router + alzheimers mock + history
+            ├── alerts.py         GET /api/alerts/active · patient windows · acknowledge
+            ├── interventions.py  create / outcome / list (Postgres row + Neo4j node)
+            ├── clinicians.py     list + availability flip
+            ├── scans.py          MRI upload stub (.nii/.nii.gz/.dcm + size cap)
+            ├── analytics.py      three empty-array stubs [HACKATHON: optional]
+            ├── health.py         GET /api/health {status, postgres, neo4j}
+            └── ws.py             WS /ws/alerts · /ws/patients/{id}/vitals (token-gated)
+
+Tests mirror this under backend/tests/unit/ (9 files) + backend/tests/integration/.
 ```
 
 ---
 
-## 3. How the provided files were integrated (important provenance note)
+## 4. ML integration — provenance & current behaviour
 
-The team-provided `inference.py` and `sepsis_route.py` are **the** ML implementation.
-They were integrated into `backend/app/ml/` (the root copies were merged in and
-removed — the canonical versions live only under `app/ml/`; both remain recoverable
-from git history):
+### Provided files
 
-| Provided file | Integrated copy | What changed |
+The team-provided `inference.py` + `sepsis_route.py` are THE ML implementation.
+They were integrated into `backend/app/ml/`; root copies were removed (canonical
+versions only under `app/ml/`, recoverable from git history).
+
+| Provided | Integrated | Changed |
 |---|---|---|
-| `inference.py` | `backend/app/ml/inference.py` | Algorithm functions (`get_threshold`, `detect_window`, `compute_urgency`, `predict_sepsis`, `SepsisPredictor.fit_surrogate`, TFT branch of `predict_trajectory`, `FEATURE_META`, constants) are **verbatim**. Clearly-marked `# --- GLUE ---` additions only: guarded imports, a deterministic surrogate implementing the same predictor interface, trained-**XGBoost bundle support** (see below), preprocessing helpers, PSV serialization. |
-| `sepsis_route.py` | `backend/app/ml/sepsis_route.py` | The skeleton is preserved (router prefix, globals, 409 `HTTPException(detail={envelope})`). The three `TODO` lookups are now real SQLAlchemy queries and the two post-prediction TODOs (progression_states write, intervention_windows row + WS push) are delegated to `services/prediction.py`. |
+| `inference.py` | `app/ml/inference.py` | Algorithm functions verbatim (`get_threshold`, `detect_window`, `compute_urgency`, `predict_sepsis`, `SepsisPredictor.fit_surrogate`, TFT branch of `predict_trajectory`, `FEATURE_META`). Marked GLUE only: guarded imports, deterministic surrogate fallback, trained-XGBoost support, preprocessing helpers, PSV serialization. |
+| `sepsis_route.py` | `app/ml/sepsis_route.py` | Skeleton preserved (router prefix, globals, 409 via `HTTPException(detail={envelope})`). The three DB TODOs implemented against SQLAlchemy; persistence/window/WS TODOs delegated to `services/prediction.py`. |
 
-### Trained model integration (current runtime)
+### Trained model (ACTIVE runtime)
 
-`backend/checkpoints/sepsis_xgboost.pkl` + `model_config.json` (committed to git so
-clones work out of the box):
-- `XGBClassifier` over trailing `{HR,O2Sat,Temp,SBP,MAP,DBP,Resp}_mean/_std` window
-  statistics; AUROC ≈ 0.70; decision threshold 0.599; horizon 6.
-- `SepsisPredictor` runs in **mode='xgboost'**: `risk_score = P(sepsis)·100` so the
-  ontology thresholds (55/60/65) apply on the same 0–100 scale; the 6-hour trajectory
-  projects the recent risk trend forward; SHAP explanations come from **native
-  TreeSHAP** (`booster.predict(pred_contribs=True)`), with the `_mean`/`_std` pair
-  contributions aggregated per base vital to align with FEATURE_META display names.
-- Falls back to the surrogate automatically if the bundle is missing — startup never
-  crashes on a missing model.
+`checkpoints/sepsis_xgboost.pkl` + `model_config.json` (committed):
+XGBClassifier over trailing `{HR,O2Sat,Temp,SBP,MAP,DBP,Resp}_mean/_std`,
+AUROC ≈ 0.70, decision threshold 0.599, horizon 6.
 
-Consequences worth knowing:
-- Threshold reasons follow the provided codes: `diabetic_lactate_sensitivity`, `elderly_reduced_reserve`, and **`null`** for default patients.
-- `risk_score_change` is `null` on a patient's first prediction (provided behaviour).
-- Window detection requires risk ≥ threshold **and a rising forecast** (stale plateaus don't open windows); `hours_remaining` = number of forecast hours above threshold.
-- Urgency is margin-based on the provided mapping (>25 CRITICAL, >15 HIGH, else MEDIUM; closed → LOW). Spec example 72.5@55 → HIGH ✓.
-- The trained model consumes only the 7 base vitals (no lactate/WBC/creatinine), so those columns don't influence its score — they remain stored and returned everywhere.
+- `risk_score = P(sepsis)·100` → ontology thresholds (55/60/65) work on one scale.
+- SHAP = native TreeSHAP (`pred_contribs`), `_mean`/`_std` pairs aggregated per base vital.
+- Trajectory = recent risk trend projected forward (a classifier isn't a forecaster).
+- Falls back to the surrogate automatically if weights/deps are missing — startup never crashes.
+
+### Behavioural rules (from the provided algorithm — tests lock these)
+
+- Threshold reasons: `diabetic_lactate_sensitivity`, `elderly_reduced_reserve`, `null` for default patients.
+- `risk_score_change`: signed string (`"+3.2"`); `null` on a patient's first-ever prediction.
+- Window opens iff `risk >= threshold` AND forecast rising (stale plateaus stay closed);
+  `hours_remaining` = number of forecast hours above threshold.
+- Urgency margin-based: >25 CRITICAL · >15 HIGH · else MEDIUM · closed → LOW.
+- Model consumes only the 7 base vitals (lactate/WBC/creatinine stored & returned but not scored).
 
 ---
 
-## 4. What is done (verified end-to-end on the live compose stack)
+## 5. What is done — verified ✅
 
-### Journey A — Sepsis prediction & intervention ✅
-1. Login `POST /api/auth/login` → JWT (`invalid_credentials` envelope on failure).
-2. Dashboard data: `GET /api/patients` (risk scores, window flags, assigned doctors) + `GET /api/alerts/active` (urgency-sorted).
-3. Vitals ingestion: `POST /api/patients/{id}/vitals` → 201 + `prediction_triggered` when ≥2h exists; Pydantic clinical-range bounds reject garbage with 422.
-4. Prediction: `GET /api/patients/{id}/predictions/sepsis` returns the exact §4 shape — risk score, signed change, 6h trajectory + confidence band, window fields, urgency, threshold used + reason, top-5 SHAP entries, generated_at. `<2h` ⇒ exact 409 `insufficient_data`.
-5. Countdown consistency: refreshing never extends a running window (server-side closes_at wins).
-6. Intervention logging: `POST .../interventions` → Postgres row **and** Neo4j `RECEIVED`/`PERFORMED_BY` edges; outcome update via `PUT /api/interventions/{id}/outcome`; history newest-first.
-7. Acknowledgement: `POST /api/windows/{id}/acknowledge` removes it from active alerts (history keeps it).
+### Journey A — prediction & intervention
+Login → dashboard (patients + urgency-sorted alerts) → vitals POST (clinical bounds;
+≥2h triggers background inference per ADR-003) → exact §4 prediction payload
+(trajectory + band + SHAP top-5) → countdown stable across refreshes → intervention
+logged (Postgres row AND Neo4j `RECEIVED`/`PERFORMED_BY`) → outcome update →
+acknowledge removes alert while history keeps it.
 
-### Journey B — Comorbidity-adjusted threshold (the payoff) ✅
-Seeded pair verified live after every seed run (scores from the **trained model**):
-- **Ramesh Yadav** (diabetic): risk ≈75.6, forecast rising → window OPEN at
-  **threshold 55** (`diabetic_lactate_sensitivity`), alert escalated from unavailable
-  Dr. Mehta to available Dr. Rao (Critical Care match).
-- **Sunita Devi** (non-diabetic): risk ≈77.9 — nearly the same score — but her default
-  threshold is 65 AND her forecast is receding; the provided `detect_window` (rising
-  required) keeps her **closed**, reason `null`. Two patients, near-identical scores,
-  only the ontology-adjusted one alerts.
-Both assertions also live in one integration test so regression = one obvious red test.
+### Journey B — the ontology payoff
+Live after every seed (trained-model scores): **Ramesh Yadav** (diabetic) ≈75.6 rising
+→ OPEN @55 (`diabetic_lactate_sensitivity`), escalated from unavailable Dr. Mehta to
+Dr. Rao; **Sunita Devi** ≈77.9 receding → CLOSED @65, reason `null`. Near-identical
+scores, only the ontology-adjusted patient alerts. Locked by one integration test.
 
-### Also working ✅
-- Ontology graph endpoint identical from **Neo4j traversal** and **Postgres-FK fallback** (`ONTOLOGY_BACKEND` flag; parity checked against both backends on the same patient).
-- Alert routing escalation to next available clinician of matching specialty (integration-tested).
-- WebSocket `/ws/alerts` pushes `window_opened` / `escalated` / `window_closed`; `/ws/patients/{id}/vitals` pushes `vitals_update`; invalid/expired tokens rejected at handshake.
-- Health check drives the compose healthcheck; structured logs on stdout (`docker compose logs -f backend`) include per-inference shape/latency/risk/window lines.
-- Stubs exactly per spec: Alzheimer's prediction (fixed mock), MRI scans (validated upload → `pending` forever), analytics endpoints (empty arrays).
+### Also verified ✅
+Graph parity between Neo4j traversal and Postgres-FK fallback (ADR-002) · escalation
+routing to next available clinician of matching specialty · WebSocket push
+(`window_opened`/`escalated`/`window_closed`, `vitals_update`) + 4401 rejection ·
+RLS deny-all on all 12 Supabase tables · structured logs with per-inference lines ·
+stubs per spec (Alzheimer's mock, MRI pending, analytics `[]`).
 
-## 5. Test suite (64 passing)
+## 6. Tests & verification tooling
 
-```
-backend/tests/unit/test_threshold_logic.py     provided get_threshold: diabetic 55 / elderly 60 /
-                                               lowest-wins / boundary / default None-reason
-backend/tests/unit/test_window_math.py         provided detect_window semantics (rising vs stale
-                                               plateau), margin-based urgency, null closes_at via
-                                               provided predict_sepsis
-backend/tests/unit/test_predict_sepsis.py      insufficient-data raise, exact §4 key set,
-                                               risk_score_change None→"+x.x", threshold contrast,
-                                               CRITICAL margin
-backend/tests/unit/test_shap_formatting.py     top-5 sorted |impact| desc, direction matches sign,
-                                               impact string format, FEATURE_META names/thresholds
-backend/tests/unit/test_validation.py          clinical-range bounds (HR 0–300, SpO2 0–100…)
-backend/tests/unit/test_psv_conversion.py      column order / pipe delimiter / missing = empty
-backend/tests/unit/test_auth_paths.py          local fallback + Supabase claims/auto-provision
-backend/tests/unit/test_xgboost_model.py       trained bundle: mode, separation, TreeSHAP labels
-backend/tests/integration/test_api.py          full HTTP flows listed in §4 above
+```bash
+docker compose exec backend pytest tests -q                    # 64 unit+integration tests
+docker compose exec backend python scripts/final_check.py      # 46 live-API assertions
+docker compose exec backend pip install -q websockets && \
+docker compose exec backend python scripts/websocket_probe.py  # live WS push check
 ```
 
-Run: `docker compose exec backend pytest tests -q`
+Unit files: thresholds · window math · predict_sepsis orchestration · SHAP formatting ·
+clinical-bound validation · PSV conversion · auth paths (local + Supabase) · xgboost
+bundle. Integration: auth envelopes · trigger/no-trigger · Journey B contrast ·
+escalation routing · alerts+acknowledge · interventions · CRUD+graph · WS · stubs · health.
 
-## 6. Configuration reference (.env)
+## 7. Configuration (.env)
+
+Full walkthrough with dashboard locations: `WHERE_TO_FIND_ENV_VALUES.md`.
 
 | Var | Purpose |
 |---|---|
-| `DATABASE_URL` | Postgres DSN — **Supabase pooler URL (current deployment)**; dockerized postgres removed from compose |
-| `SUPABASE_URL` / `SUPABASE_ANON_KEY` | auth proxies to Supabase (login/refresh; tokens verified via JWKS or HS256) — active |
-| `SUPABASE_JWT_SECRET` | legacy HS256 projects only; leave blank for newer asymmetric-key projects |
-| `NEO4J_URL` / `NEO4J_USER` / `NEO4J_PASSWORD` / `NEO4J_AUTH` | graph store (keep AUTH and PASSWORD in sync) |
-| `ONTOLOGY_BACKEND` | `neo4j` (default) or `postgres_fk` — ADR-002 one-flag fallback |
-| `JWT_SECRET` / `JWT_EXPIRES_IN` | local-flow signing key + TTL seconds |
-| `MIN_INFERENCE_HOURS` | gate for triggering prediction (2) |
-| `WINDOW_DURATION_HOURS` | surrogate-mode fallback window length (forecast hours drive it otherwise) |
-| `TRAJECTORY_HOURS` | forecast horizon points (6) |
-| `SEPSIS_CHECKPOINT_PATH` | trained bundle (`/app/checkpoints/sepsis_xgboost.pkl`) |
-| `MRI_UPLOAD_DIR` / `MRI_MAX_UPLOAD_MB` | scan-stub storage + size cap |
-| `SEED_CLINICIAN_EMAIL` / `SEED_CLINICIAN_PASSWORD` | demo login created by seed script |
-| `CORS_ORIGINS`, `LOG_LEVEL` | misc (CORS already allows the frontend dev origin :5173) |
+| `DATABASE_URL` | Supabase pooler URL — the only datastore |
+| `SUPABASE_URL` / `SUPABASE_ANON_KEY` | enables Supabase Auth proxying (login/refresh; JWKS or HS256 verification) |
+| `SUPABASE_JWT_SECRET` | legacy HS256 projects; blank ⇒ JWKS |
+| `NEO4J_AUTH` / `NEO4J_PASSWORD` | self-hosted Neo4j (keep in sync) |
+| `JWT_SECRET` | local-flow fallback signing key |
+| `ONTOLOGY_BACKEND` | `neo4j` (default) or `postgres_fk` (ADR-002) |
+| `SEED_CLINICIAN_PASSWORD` | password for the dashboard-created demo login |
 
-### Supabase mode
+Optional overrides (defaults in `core/config.py`): `NEO4J_URL` · `NEO4J_USER` ·
+`JWT_EXPIRES_IN` · `MIN_INFERENCE_HOURS` · `WINDOW_DURATION_HOURS` ·
+`TRAJECTORY_HOURS` · `SEPSIS_CHECKPOINT_PATH` · `MRI_UPLOAD_DIR` ·
+`MRI_MAX_UPLOAD_MB` · `SEED_CLINICIAN_EMAIL` · `CORS_ORIGINS` · `LOG_LEVEL`.
 
-- **DB:** point `DATABASE_URL` at the Supabase pooler, then push the schema with
-  `docker compose exec backend python apply_supabase_schema.py` (tables land in
-  `public`; Supabase's own `auth` schema is untouched). SQLAlchemy/psycopg3 need
-  no other changes.
-- **Auth:** `/api/auth/login` and `/api/auth/refresh` proxy to Supabase Auth
-  (GoTrue). Every request verifies the presented JWT — HS256 shared secret when
-  `SUPABASE_JWT_SECRET` is set, otherwise the project's JWKS endpoint. Users are
-  mapped to the local `users` profile by email and auto-provisioned on first
-  call (role `clinician`, empty password hash — credentials never touch MedIQ).
-  `POST /api/auth/refresh` additionally takes `refresh_token` in the body; the
-  login/refresh response carries an additive `refresh_token` field.
-- **Fallback:** leave `SUPABASE_URL` empty and everything reverts to local JWT +
-  dockerized postgres (offline demo / tests).
-- Neo4j stays self-hosted via docker in both modes.
+### Supabase notes
+
+- **DB:** `DATABASE_URL` points at the Session pooler; schema pushed via
+  `apply_supabase_schema.py`. Tables live in `public`; Supabase's own `auth`
+  schema is untouched. RLS deny-all applied (see `supabase_rls.sql`).
+- **Auth:** `/api/auth/login|refresh` proxy to GoTrue. Tokens verified per request
+  — HS256 secret or JWKS. Users mapped to local `users` profiles by email and
+  auto-provisioned on first call (role `clinician`; credentials never touch MedIQ).
+  Demo identity must be created in the dashboard as `doctor@mediq.local` with
+  Auto Confirm ON — public signup enforces MX validation and rejects `.local`.
+- **Fallback:** clearing `SUPABASE_*` reverts to local-JWT mode for offline use
+  (requires re-adding a Postgres, e.g. the old compose service from git history).
+- Neo4j stays self-hosted via docker in every mode.
 
 ### PhysioNet training-data cases
 
-`backend/data/sepsis_samples/` holds three real ICU stays from
-`training_sepsis/` (the dataset the model was trained on; the full dataset is
-git-ignored). The seed loads them as named demo patients — **no manual vitals,
-no threshold overrides** — so they showcase the trained model on real data:
+`backend/data/sepsis_samples/` holds three real ICU stays from the training set
+(`training_sepsis/` is git-ignored). Seeded as named patients with **no manual
+vitals and no threshold overrides** — pure trained-model behaviour:
 
 | Patient | Source | Trained-model outcome |
 |---|---|---|
@@ -256,16 +255,18 @@ no threshold overrides** — so they showcase the trained model on real data:
 | Raghav Kulkarni (75) | p002399.psv, onset after shown window | ≈38 → quiet (pre-onset) |
 | Meera Joshi (59) | p001583.psv, never septic | ≈1 → rock-stable control |
 
-## 7. Known deviations & deliberate cuts (also flagged inline in code)
+## 8. Known deviations & deliberate cuts (also flagged inline in code)
 
-1. **Provided-file integration tweaks** (§3 above): guarded heavy imports; surrogate fallback so startup never crashes pre-training; `explain()` works in surrogate AND xgboost modes (the original condition would have emitted `[]`); surrogate forecasts capped at 100 (not 99) so saturating patients still count as "rising".
-2. **`patient_assignments` extra table**: additive-only, needed because assignment isn't representable in the specified schema yet the API/routing require it — especially in `postgres_fk` mode.
-3. **schema.sql order fix**: `clinicians` moved before `interventions` (FK forward-reference bug in the spec doc; table definitions unchanged).
+1. **Provided-file GLUE tweaks**: guarded heavy imports; surrogate/xgboost fallbacks so startup never crashes pre-training; `explain()` extended to surrogate+xgboost modes; surrogate forecasts capped at 100 (not 99) so saturating patients still count as "rising".
+2. **`patient_assignments` extra table**: additive-only; assignment isn't representable in the specified schema yet the API/routing require it — especially in `postgres_fk` mode.
+3. **schema.sql order fix**: `clinicians` moved before `interventions` (FK forward-reference bug in the spec doc; definitions unchanged).
 4. **409 body superset**: envelope keys AND flat `hours_available`/`hours_required`.
-5. **Supabase auth additions** (opt-in): additive `refresh_token` response field; `/api/auth/refresh` accepts a body in Supabase mode; auto-provisioned local profiles for Supabase-authenticated users. Local flow unchanged when unset.
-6. Analytics/MRI/Alzheimer's are stubs by design (ADR-001). The React frontend lives in a separate repository; compose runs backend + Neo4j only.
-7. The full `training_sepsis/` dataset is git-ignored (161MB / 20k files); only three small sample PSVs are committed under `backend/data/sepsis_samples/`.
+5. **Supabase additions**: additive `refresh_token` response field; `/refresh` accepts a body in Supabase mode; auto-provisioned local profiles; dashboard-created users required (public signup blocks `.local` addresses).
+6. **xgboost range-pinned** (`>=3.2,<4`): pickle behaves consistently across those versions (ground-truth checked against p016276 labels); newer releases unverified.
+7. Analytics/MRI/Alzheimer's are stubs by design (ADR-001). React frontend lives in a separate repository; compose runs backend + Neo4j only.
+8. Full `training_sepsis/` dataset git-ignored (~161MB / 20k files); only three sample PSVs committed under `backend/data/sepsis_samples/`.
 
-## 8. Out of scope (per PRD §8 — not built, on purpose)
+## 9. Out of scope (per PRD §8 — not built, on purpose)
 
-Model retraining loop · HL7/FHIR · Kubernetes/multi-tenant · SMS/email delivery · RBAC hierarchy · audit-grade access logs · encryption-at-rest · automated E2E browser tests.
+Model retraining loop · HL7/FHIR · Kubernetes/multi-tenant · SMS/email delivery ·
+RBAC hierarchy · audit-grade access logs · encryption-at-rest · automated E2E browser tests.
