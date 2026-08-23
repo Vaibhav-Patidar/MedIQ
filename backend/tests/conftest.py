@@ -10,14 +10,24 @@ sys.path.insert(0, BACKEND_DIR)
 
 # Test env BEFORE any app import: postgres_fk ontology (exercises the ADR-002
 # fallback), throwaway SQLite database, fixed JWT secret.
+# NOTE: DATABASE_URL is FORCED (not setdefault) so a test run inside the backend
+# container can never touch the live Postgres database.
 _TMPDIR = tempfile.mkdtemp(prefix="mediq-tests-")
-os.environ.setdefault("DATABASE_URL", f"sqlite:///{_TMPDIR}/mediq-test.db")
+os.environ["DATABASE_URL"] = f"sqlite:///{_TMPDIR}/mediq-test.db"
 os.environ["ONTOLOGY_BACKEND"] = "postgres_fk"
 os.environ["JWT_SECRET"] = "test-secret"
 os.environ["JWT_EXPIRES_IN"] = "3600"
 os.environ["MRI_UPLOAD_DIR"] = os.path.join(_TMPDIR, "uploads")
 os.environ["MRI_MAX_UPLOAD_MB"] = "2"
-os.environ.pop("SEPSIS_CHECKPOINT_PATH", None)  # force surrogate backend
+# Pipeline tests assert against the DETERMINISTIC surrogate scoring; force it
+# even when a trained bundle ships with the image (xgboost-mode is covered by
+# tests/unit/test_xgboost_model.py which loads the bundle directly).
+os.environ["SEPSIS_CHECKPOINT_PATH"] = ""
+# Force the LOCAL auth path — tests must never call a real Supabase project
+# (Supabase integration itself is exercised via unit-level fakes where needed).
+os.environ.pop("SUPABASE_URL", None)
+os.environ.pop("SUPABASE_ANON_KEY", None)
+os.environ.pop("SUPABASE_JWT_SECRET", None)
 
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
@@ -134,6 +144,24 @@ def seeded_db():
 def client(seeded_db):
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture()
+def db_session():
+    """Direct DB session for unit-style tests (ensures schema exists)."""
+    from sqlalchemy.orm import sessionmaker
+
+    Base.metadata.create_all(get_engine())
+    factory = sessionmaker(bind=get_engine(), expire_on_commit=False)
+    db = factory()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 @pytest.fixture(scope="session")

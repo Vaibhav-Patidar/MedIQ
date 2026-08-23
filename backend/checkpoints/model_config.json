@@ -1,0 +1,33 @@
+{
+  "model_type": "xgboost",
+  "model_features": [
+    "HR_mean",
+    "HR_std",
+    "O2Sat_mean",
+    "O2Sat_std",
+    "Temp_mean",
+    "Temp_std",
+    "SBP_mean",
+    "SBP_std",
+    "MAP_mean",
+    "MAP_std",
+    "DBP_mean",
+    "DBP_std",
+    "Resp_mean",
+    "Resp_std"
+  ],
+  "feature_cols": [
+    "HR",
+    "O2Sat",
+    "Temp",
+    "SBP",
+    "MAP",
+    "DBP",
+    "Resp"
+  ],
+  "best_iteration": 299,
+  "auroc": 0.7034512693913165,
+  "decision_threshold": 0.5988417863845825,
+  "trajectory_horizon": 6,
+  "scale_pos_weight": 25.41593973037272
+}

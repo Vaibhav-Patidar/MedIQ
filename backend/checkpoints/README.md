@@ -1,17 +1,24 @@
-# Drop your trained model here
+# Trained model bundle
 
-`SepsisPredictor` (backend/app/ml/inference.py) starts **without any checkpoint** —
-it falls back to a deterministic, clinically-motivated surrogate scorer so the whole
-demo (risk score → window → SHAP → countdown) works end to end. This is intentional:
-the backend must boot cleanly before the TFT training pipeline lands.
+This directory holds the trained sepsis model loaded at backend startup.
 
-To use the real model:
+## Current bundle (committed)
 
-1. Train via the sepsis TFT notebook (PhysioNet/CinC 2019), export a bundle to this
-   directory, e.g. `sepsis_tft.pt` (+ optional LightGBM surrogate `surrogate.lgbm`).
-2. Set `SEPSIS_CHECKPOINT_PATH=/app/checkpoints/sepsis_tft.pt` in `.env`.
-3. Uncomment `torch`, `pytorch-forecasting`, `shap` in `requirements.txt` and rebuild.
-4. Restart the backend — startup logs will say which predictor backend loaded.
+- `sepsis_xgboost.pkl` — XGBClassifier (sklearn API) trained on PhysioNet-derived
+  windowed statistics. AUROC ≈ 0.70.
+- `model_config.json` — feature list (`{HR,O2Sat,Temp,SBP,MAP,DBP,Resp}_mean/_std`),
+  base `feature_cols`, decision threshold (0.599), trajectory horizon (6).
 
-If the checkpoint file is missing or the heavy libs aren't installed, the app logs a
-warning and uses the surrogate. It never crashes on startup because of a missing model.
+**Loading path:** `SepsisPredictor` (backend/app/ml/inference.py) detects the `.pkl`
+via `SEPSIS_CHECKPOINT_PATH`, reads the sibling `model_config.json`, and runs in
+mode='xgboost': risk_score = P(sepsis)·100, SHAP explanations come from native
+TreeSHAP (`pred_contribs`), and the 6-hour trajectory projects the recent risk
+trend forward. If the files are missing, the predictor silently falls back to the
+deterministic clinical surrogate — startup never fails on a missing model.
+
+## Swapping in a TFT later
+
+Export the Temporal Fusion Transformer checkpoint here, point
+`SEPSIS_CHECKPOINT_PATH` at it, uncomment `torch` / `pytorch-forecasting` /
+`shap` / `lightgbm` in `backend/requirements.txt`, and rebuild — the provided
+TFT branch takes over automatically.

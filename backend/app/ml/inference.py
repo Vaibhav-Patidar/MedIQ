@@ -46,6 +46,15 @@ try:
 except ImportError:  # pragma: no cover
     TemporalFusionTransformer = None
     TimeSeriesDataSet = None
+try:
+    import pickle
+
+    import xgboost
+except ImportError:  # pragma: no cover - required for the trained-model path
+    xgboost = None
+    pickle = None
+
+XGBOOST_AVAILABLE = xgboost is not None
 
 TFT_STACK_AVAILABLE = all(
     obj is not None for obj in (shap, LGBMClassifier, TemporalFusionTransformer, TimeSeriesDataSet)
@@ -161,6 +170,14 @@ class SepsisPredictor:
     clinically-motivated additive scorer over the SAME feature columns
     implements predict_trajectory()/explain(), so the whole demo works before
     training completes and startup NEVER crashes on missing weights.
+
+    --- GLUE (trained model) --- mode='xgboost': loads the team's trained
+    XGBClassifier bundle (sepsis_xgboost.pkl + sibling model_config.json).
+    The model consumes trailing mean/std statistics over 7 base vitals
+    (HR, O2Sat, Temp, SBP, MAP, DBP, Resp) and outputs a sepsis probability;
+    risk_score = P(sepsis) * 100 so the ontology thresholds (55/60/65) apply
+    on the same 0-100 scale. Native TreeSHAP via booster pred_contribs powers
+    explain() — no heavy `shap` package required.
     """
     def __init__(self, checkpoint_path: str | None = None, surrogate_horizon: int = 6):
         self.surrogate_horizon = surrogate_horizon
@@ -169,6 +186,31 @@ class SepsisPredictor:
         self._explainer = None
         self._feature_cols = None
         self.mode = 'surrogate'
+        # --- GLUE: trained XGBoost bundle (sepsis_xgboost.pkl + model_config.json) ---
+        if checkpoint_path and checkpoint_path.endswith('.pkl') and XGBOOST_AVAILABLE:
+            import json
+            import os
+
+            if os.path.exists(checkpoint_path):
+                with open(checkpoint_path, 'rb') as fh:
+                    self.model = pickle.load(fh)
+                cfg_path = os.path.join(os.path.dirname(checkpoint_path), 'model_config.json')
+                self.model_config = {}
+                if os.path.exists(cfg_path):
+                    with open(cfg_path) as fh:
+                        self.model_config = json.load(fh)
+                self.model_features = list(self.model_config.get(
+                    'model_features', []))
+                self._feature_cols = list(self.model_config.get('feature_cols', FEATURE_COLS))
+                self.decision_threshold = float(self.model_config.get('decision_threshold', 0.5))
+                self.surrogate_horizon = int(self.model_config.get(
+                    'trajectory_horizon', surrogate_horizon))
+                self._last_window_stats = None  # cached for explain()
+                self.mode = 'xgboost'
+                print(f'[mediq.ml] loaded trained XGBoost sepsis model from '
+                      f'{checkpoint_path} (auroc={self.model_config.get("auroc")}, '
+                      f'decision_threshold={self.decision_threshold:.3f})')
+                return
         if checkpoint_path and TFT_STACK_AVAILABLE:
             self.model = TemporalFusionTransformer.load_from_checkpoint(checkpoint_path)
             self.model.eval()
@@ -207,6 +249,14 @@ class SepsisPredictor:
     def _raw_shap_values(self, current_vitals: dict) -> np.ndarray:
         """Flattened SHAP values aligned to self._feature_cols (or FEATURE_COLS)."""
         cols = self._feature_cols or FEATURE_COLS
+        if self.mode == 'xgboost':
+            # native TreeSHAP on the trailing-window stats actually used for
+            # prediction; aggregate the _mean/_std pair contributions per base
+            # vital so explanations align with FEATURE_META display names.
+            contribs = self._xgb_contributions(self._window_stats_for_explain(current_vitals))
+            vals = [sum(contribs[i] for i, f in enumerate(self.model_features)
+                        if f.startswith(col + '_')) for col in cols]
+            return np.asarray(vals, dtype=float).flatten()
         if self.mode == 'surrogate':
             # deterministic clinical attributions, scaled like SHAP values
             vals = np.array([[self._surrogate_contribution(c, current_vitals) / 100.0
@@ -246,7 +296,92 @@ class SepsisPredictor:
             lower_band = quantiles[:, 0] * 100
             upper_band = quantiles[:, -1] * 100
             return median_forecast, lower_band, upper_band
+        if self.mode == 'xgboost':
+            return self._xgb_trajectory(patient_sequence_df)
         return self._surrogate_trajectory(patient_sequence_df)
+
+    # --- GLUE: trained XGBoost bundle (trailing mean/std stats -> sepsis proba) ---
+
+    def _window_stats_vector(self, df: pd.DataFrame, upto_pos: int) -> dict:
+        """Trailing mean/std of each base feature over sequence rows [0..upto_pos].
+        Mirrors the aggregation the model was trained on (model_features)."""
+        window = df.iloc[:upto_pos + 1]
+        stats = {}
+        for base in self._feature_cols:
+            series = window[base].astype(float)
+            stats[f'{base}_mean'] = float(series.mean())
+            std = float(series.std())
+            stats[f'{base}_std'] = 0.0 if np.isnan(std) else std
+        return {f: stats.get(f, 0.0) for f in self.model_features}
+
+    def _stats_to_frame_row(self, stats: dict) -> 'pd.DataFrame':
+        import pandas as _pd
+
+        return _pd.DataFrame([{f: float(stats.get(f, 0.0)) for f in self.model_features}],
+                             columns=self.model_features)
+
+    def _xgb_proba(self, stats: dict) -> float:
+        frame = self._stats_to_frame_row(stats)
+        return float(self.model.predict_proba(frame)[0][1])
+
+    def _xgb_contributions(self, stats: dict) -> list[float]:
+        """Native TreeSHAP contributions per model feature (+ bias at the end,
+        dropped). Falls back to zeros when unavailable."""
+        try:
+            import xgboost as _xgb
+
+            booster = (self.model.get_booster()
+                       if hasattr(self.model, 'get_booster') else self.model)
+            dmatrix = _xgb.DMatrix(self._stats_to_frame_row(stats),
+                                   feature_names=list(self.model_features))
+            contribs = np.asarray(booster.predict(dmatrix, pred_contribs=True))[0]
+            return [float(c) for c in contribs[:len(self.model_features)]]
+        except Exception as exc:
+            print(f'[mediq.ml] TreeSHAP contributions unavailable ({exc})')
+            return [0.0] * len(self.model_features)
+
+    def _window_stats_for_explain(self, current_vitals: dict) -> dict:
+        """Prefer the exact stats vector behind the last predict_trajectory call;
+        fall back to single-observation stats from the latest vitals."""
+        if getattr(self, '_last_window_stats', None):
+            return self._last_window_stats
+        stats = {}
+        for f in self.model_features:
+            base = f.rsplit('_', 1)[0]
+            value = current_vitals.get(base)
+            stats[f] = float(value) if value is not None else 0.0
+            if f.endswith('_std'):
+                stats[f] = 0.0
+        return stats
+
+    def _xgb_trajectory(self, df: pd.DataFrame):
+        """Historical risk curve from trailing windows + short-horizon slope
+        projection (the classifier is not a forecaster; recent trend is the
+        honest projection). Returns numpy arrays like the TFT branch."""
+        ordered = df.sort_values('time_idx').reset_index(drop=True)
+        historical = []
+        last_stats = None
+        for pos in range(len(ordered)):
+            stats = self._window_stats_vector(ordered, pos)
+            last_stats = stats
+            historical.append(self._xgb_proba(stats) * 100.0)
+        self._last_window_stats = last_stats
+
+        risk_now = historical[-1] if historical else self.BASELINE_RISK
+        if len(historical) >= 3:
+            slope = (historical[-1] - historical[-3]) / 2.0
+        elif len(historical) == 2:
+            slope = historical[1] - historical[0]
+        else:
+            slope = 0.0
+        slope = self._clamp(slope, -8.0, 8.0)
+        horizon = int(getattr(self, 'surrogate_horizon', 6))
+        median_forecast = np.array([
+            self._clamp(risk_now + slope * i, 0.0, 100.0) for i in range(horizon)
+        ])
+        lower_band = np.array([max(0.0, m - (4.0 + i * 1.5)) for i, m in enumerate(median_forecast)])
+        upper_band = np.array([min(100.0, m + (4.0 + i * 1.5)) for i, m in enumerate(median_forecast)])
+        return median_forecast, lower_band, upper_band
 
     # --- GLUE: deterministic surrogate scoring over the same feature columns ---
 
@@ -396,7 +531,12 @@ def predict_sepsis(patient_id: str, patient_sequence_df: pd.DataFrame,
         risk_score_change = f'{delta:+.1f}'
 
     current_vitals = {c: patient_sequence_df.iloc[-1][c] for c in feature_cols}
-    shap_explanation = predictor.explain(current_vitals) if predictor.surrogate is not None or predictor.mode == 'surrogate' else []
+    # --- GLUE --- also explain in 'xgboost' mode (native TreeSHAP); the original
+    # condition only covered a fitted LightGBM surrogate / deterministic surrogate.
+    if predictor.mode in ('surrogate', 'xgboost') or predictor.surrogate is not None:
+        shap_explanation = predictor.explain(current_vitals)
+    else:
+        shap_explanation = []
 
     return {
         'risk_score': round(risk_now, 1),

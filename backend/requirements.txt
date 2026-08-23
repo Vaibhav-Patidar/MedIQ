@@ -11,15 +11,20 @@ bcrypt>=4.1
 python-multipart>=0.0.9
 pandas>=2.2
 numpy>=1.26
+# trained sepsis model runtime (backend/checkpoints/sepsis_xgboost.pkl);
+# native TreeSHAP comes from xgboost itself — no heavy shap package needed
+xgboost>=2.0
+# Supabase hosted-auth REST calls (runtime, not just tests)
+httpx>=0.27
 
 # --- test deps (kept in the same file so `docker compose exec backend pytest` works) ---
 pytest>=8.0
-httpx>=0.27
 
 # --- OPTIONAL heavy ML deps ---
-# The demo runs on the deterministic clinical surrogate in app/ml/inference.py and
-# does NOT need these. Uncomment ONLY when loading a real trained TFT checkpoint
+# The demo runs on the trained XGBoost bundle (see above) and does NOT need
+# these. Uncomment ONLY when switching to a real TFT checkpoint
 # (backend/checkpoints/, see README there); they add ~2GB+ to the image.
 # torch>=2.2
 # pytorch-forecasting>=1.1
 # shap>=0.45
+# lightgbm>=4.3
