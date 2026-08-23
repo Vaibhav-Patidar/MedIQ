@@ -23,11 +23,24 @@ class Settings(BaseSettings):
     jwt_expires_in: int = 3600
     jwt_algorithm: str = "HS256"
 
+    # Supabase (managed Postgres + hosted auth). When supabase_url is set,
+    # login/refresh proxy to Supabase Auth and API tokens are verified against
+    # it; otherwise the built-in local JWT flow is used (tests / offline demo).
+    supabase_url: str | None = None
+    supabase_anon_key: str | None = None
+    # Legacy projects sign JWTs with HS256 + this secret. Newer projects use
+    # asymmetric keys — leave blank and JWKS is used automatically.
+    supabase_jwt_secret: str | None = None
+
+    @property
+    def supabase_enabled(self) -> bool:
+        return bool(self.supabase_url and self.supabase_anon_key)
+
     # Sepsis prediction
     min_inference_hours: float = 2.0
     window_duration_hours: float = 4.0
     trajectory_hours: int = 6
-    sepsis_checkpoint_path: str | None = None
+    sepsis_checkpoint_path: str | None = "/app/checkpoints/sepsis_xgboost.pkl"
 
     # MRI upload stub
     mri_upload_dir: str = "./uploads"

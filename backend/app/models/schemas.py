@@ -37,6 +37,8 @@ class TokenResponse(ApiModel):
     token_type: str = "bearer"
     expires_in: int
     user: UserPublic
+    # additive, present only in Supabase mode (used by POST /api/auth/refresh)
+    refresh_token: str | None = None
 
 
 # --- Patients (Section 2) ---------------------------------------------------
