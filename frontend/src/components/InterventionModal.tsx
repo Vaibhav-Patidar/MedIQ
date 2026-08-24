@@ -28,57 +28,108 @@ export default function InterventionModal({ patientId, windowId, onClose, onSucc
         window_id: windowId || null,
       };
       const res = await post<Intervention>(`/patients/${patientId}/interventions`, body);
-      addToast('Intervention logged to patient graph.');
+      addToast('Clinical intervention logged & synced with hospital EHR graph.');
       onSuccess(res);
       onClose();
     } catch {
-      // handled by envelope
+      // handled
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2 className="modal-title">Log Intervention</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group" style={{ marginBottom: 12 }}>
-            <label className="form-label">Intervention Type</label>
-            <select
-              className="form-input"
-              value={type}
-              onChange={(e) => setType(e.target.value as InterventionCreate['type'])}
-            >
-              <option value="medication_change">Medication Change</option>
-              <option value="procedure">Procedure</option>
-              <option value="dosage_change">Dosage Change</option>
-              <option value="other">Other</option>
-            </select>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 580 }}>
+        {/* ── Modal Header ── */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 38,
+              height: 38,
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--color-primary-container)',
+              color: 'var(--color-on-primary-container)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <span className="material-symbols-outlined">clinical_notes</span>
+            </div>
+            <div>
+              <h2 className="font-headline-md" style={{ margin: 0 }}>
+                Record Clinical Intervention
+              </h2>
+              <span style={{ fontSize: 11, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>sync</span>
+                Auto-syncing with Hospital Graph EHR
+              </span>
+            </div>
           </div>
-          <div className="form-group" style={{ marginBottom: 12 }}>
-            <label className="form-label">Notes</label>
+
+          <button
+            className="btn btn-sm btn-ghost"
+            onClick={onClose}
+            style={{ borderRadius: '50%', width: 32, height: 32, padding: 0 }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* ── Form ── */}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div className="form-group">
+              <label className="form-label">Intervention Category</label>
+              <select
+                className="form-select"
+                value={type}
+                onChange={(e) => setType(e.target.value as InterventionCreate['type'])}
+              >
+                <option value="medication_change">Medication Adjustment (Vasopressor / Antibiotic)</option>
+                <option value="procedure">Fluid Bolus / Resuscitation</option>
+                <option value="dosage_change">Dosage Titration</option>
+                <option value="other">Respiratory / Airway Support</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Performed At</label>
+              <input
+                className="form-input"
+                type="datetime-local"
+                value={performedAt}
+                onChange={(e) => setPerformedAt(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Clinical Action &amp; Orders</label>
             <textarea
-              className="form-input"
+              className="form-textarea"
+              rows={4}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe the intervention..."
+              placeholder="e.g., Administered 1000 mL IV 0.9% Normal Saline bolus over 30 mins; initiated broad-spectrum Vancomycin."
               required
             />
           </div>
-          <div className="form-group" style={{ marginBottom: 12 }}>
-            <label className="form-label">Performed At</label>
-            <input
-              className="form-input"
-              type="datetime-local"
-              value={performedAt}
-              onChange={(e) => setPerformedAt(e.target.value)}
-            />
-          </div>
-          <div className="modal-actions">
-            <button type="button" className="btn" onClick={onClose}>Cancel</button>
+
+          {/* Actions */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 12 }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>
+              Cancel
+            </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Logging…' : 'Log Intervention'}
+              {loading ? (
+                'Syncing Intervention…'
+              ) : (
+                <>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>check_circle</span>
+                  <span>Commit to Clinical Graph</span>
+                </>
+              )}
             </button>
           </div>
         </form>

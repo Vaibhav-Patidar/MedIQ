@@ -36,49 +36,67 @@ export default function HistoryTab({ patientId }: { patientId: string }) {
   }
 
   if (loading) {
-    return <div className="skeleton skeleton-card" style={{ height: 200 }} />;
+    return <div className="skeleton" style={{ height: 240, borderRadius: 'var(--radius-lg)' }} />;
   }
 
   return (
-    <div className="flex-col">
-      {/* Interventions */}
-      <div className="card">
-        <h2 className="text-heading" style={{ marginBottom: 12 }}>Intervention Log</h2>
+    <div className="flex-col" style={{ gap: 24 }}>
+      {/* ── Interventions Log ── */}
+      <div className="card" style={{ padding: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>
+            clinical_notes
+          </span>
+          <h3 className="font-headline-md" style={{ margin: 0 }}>
+            Clinical Intervention Log
+          </h3>
+        </div>
+
         {interventions.length === 0 ? (
-          <div className="empty-state">No interventions logged.</div>
+          <div className="empty-state">No clinical interventions logged for this stay.</div>
         ) : (
-          <div className="table-wrap">
+          <div className="table-container">
             <table>
               <thead>
                 <tr>
-                  <th>Type</th>
-                  <th>Description</th>
-                  <th>Performed At</th>
-                  <th>Outcome</th>
-                  <th></th>
+                  <th>Category</th>
+                  <th>Clinical Action / Protocol</th>
+                  <th>Timestamp</th>
+                  <th>Patient Outcome</th>
+                  <th>Record Outcome</th>
                 </tr>
               </thead>
               <tbody>
                 {interventions.map((intv) => (
                   <tr key={intv.intervention_id}>
-                    <td><span className="badge badge-info">{intv.type.replace('_', ' ')}</span></td>
-                    <td style={{ maxWidth: 300, fontSize: 13 }}>{intv.description}</td>
+                    <td>
+                      <span className="badge badge-neutral" style={{ fontWeight: 600 }}>
+                        {intv.type.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td style={{ maxWidth: 320, fontSize: 13 }}>{intv.description}</td>
                     <td className="text-mono" style={{ fontSize: 12 }}>{formatDateTime(intv.performed_at)}</td>
                     <td>
                       {intv.outcome ? (
-                        <span className={`badge ${intv.outcome === 'improved' ? 'badge-success' : intv.outcome === 'deteriorated' ? 'badge-critical' : 'badge-medium'}`}>
+                        <span className={`badge ${intv.outcome === 'improved' ? 'badge-stable' : intv.outcome === 'deteriorated' ? 'badge-critical' : 'badge-high'}`}>
                           {intv.outcome}
                         </span>
                       ) : (
-                        <span style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>Pending</span>
+                        <span style={{ color: 'var(--color-outline)', fontSize: 12 }}>Pending Evaluation</span>
                       )}
                     </td>
                     <td>
                       {!intv.outcome && (
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button className="btn btn-sm" onClick={() => recordOutcome(intv.intervention_id, 'improved')}>Improved</button>
-                          <button className="btn btn-sm" onClick={() => recordOutcome(intv.intervention_id, 'no_change')}>No Change</button>
-                          <button className="btn btn-sm" onClick={() => recordOutcome(intv.intervention_id, 'deteriorated')}>Deteriorated</button>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button className="btn btn-sm btn-secondary" onClick={() => recordOutcome(intv.intervention_id, 'improved')}>
+                            Improved
+                          </button>
+                          <button className="btn btn-sm btn-ghost" onClick={() => recordOutcome(intv.intervention_id, 'no_change')}>
+                            Stable
+                          </button>
+                          <button className="btn btn-sm btn-danger" onClick={() => recordOutcome(intv.intervention_id, 'deteriorated')}>
+                            Deteriorated
+                          </button>
                         </div>
                       )}
                     </td>
@@ -90,29 +108,47 @@ export default function HistoryTab({ patientId }: { patientId: string }) {
         )}
       </div>
 
-      {/* Window History */}
-      <div className="card">
-        <h2 className="text-heading" style={{ marginBottom: 12 }}>Window History</h2>
+      {/* ── Window History ── */}
+      <div className="card" style={{ padding: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>
+            timer
+          </span>
+          <h3 className="font-headline-md" style={{ margin: 0 }}>
+            Intervention Window History
+          </h3>
+        </div>
+
         {windows.length === 0 ? (
-          <div className="empty-state">No intervention windows recorded.</div>
+          <div className="empty-state">No past intervention alert windows.</div>
         ) : (
-          <div className="table-wrap">
+          <div className="table-container">
             <table>
               <thead>
                 <tr>
-                  <th>Window ID</th>
-                  <th>Urgency</th>
-                  <th>Closes At</th>
-                  <th>Action</th>
+                  <th>Window Token</th>
+                  <th>Urgency Level</th>
+                  <th>Expiry Timestamp</th>
+                  <th>Recommended Care Bundle</th>
                 </tr>
               </thead>
               <tbody>
                 {windows.map((w) => (
                   <tr key={w.window_id}>
-                    <td className="text-mono" style={{ fontSize: 11 }}>{w.window_id.slice(0, 8)}</td>
-                    <td><span className={`badge badge-${w.urgency?.toLowerCase() || 'low'}`}>{w.urgency}</span></td>
-                    <td className="text-mono" style={{ fontSize: 12 }}>{w.window_closes_at ? formatDateTime(w.window_closes_at) : '—'}</td>
-                    <td style={{ fontSize: 13 }}>{w.recommended_action}</td>
+                    <td className="text-mono" style={{ fontSize: 12, fontWeight: 600 }}>
+                      #{w.window_id.slice(0, 8).toUpperCase()}
+                    </td>
+                    <td>
+                      <span className={`badge badge-${w.urgency?.toLowerCase() === 'critical' ? 'critical' : 'high'}`}>
+                        {w.urgency}
+                      </span>
+                    </td>
+                    <td className="text-mono" style={{ fontSize: 12 }}>
+                      {w.window_closes_at ? formatDateTime(w.window_closes_at) : '—'}
+                    </td>
+                    <td style={{ fontSize: 13, color: 'var(--color-on-surface-variant)' }}>
+                      {w.recommended_action}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -121,21 +157,29 @@ export default function HistoryTab({ patientId }: { patientId: string }) {
         )}
       </div>
 
-      {/* Prediction Snapshots */}
-      <div className="card">
-        <h2 className="text-heading" style={{ marginBottom: 12 }}>Prediction Snapshots</h2>
+      {/* ── Prediction Snapshots ── */}
+      <div className="card" style={{ padding: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>
+            analytics
+          </span>
+          <h3 className="font-headline-md" style={{ margin: 0 }}>
+            Model Inference Snapshot History
+          </h3>
+        </div>
+
         {predictions.length === 0 ? (
-          <div className="empty-state">No prediction history.</div>
+          <div className="empty-state">No inference snapshots available.</div>
         ) : (
-          <div className="table-wrap">
+          <div className="table-container">
             <table>
               <thead>
                 <tr>
                   <th>Generated At</th>
                   <th>Risk Score</th>
-                  <th>Change</th>
+                  <th>Score Delta</th>
                   <th>Urgency</th>
-                  <th>Window</th>
+                  <th>Window Status</th>
                   <th>Threshold</th>
                 </tr>
               </thead>
@@ -143,11 +187,26 @@ export default function HistoryTab({ patientId }: { patientId: string }) {
                 {predictions.map((p, i) => (
                   <tr key={i}>
                     <td className="text-mono" style={{ fontSize: 12 }}>{formatDateTime(p.generated_at)}</td>
-                    <td className="text-mono" style={{ fontWeight: 600 }}>{p.risk_score.toFixed(1)}</td>
-                    <td className="text-mono">{p.risk_score_change || '—'}</td>
-                    <td><span className={`badge badge-${p.urgency.toLowerCase()}`}>{p.urgency}</span></td>
-                    <td>{p.window_open ? 'Open' : 'Closed'}</td>
-                    <td className="text-mono">{p.threshold_used}</td>
+                    <td className="text-mono" style={{
+                      fontWeight: 700,
+                      color: p.risk_score >= 65 ? 'var(--color-error)' : 'var(--color-on-surface)',
+                    }}>
+                      {p.risk_score.toFixed(1)}%
+                    </td>
+                    <td className="text-mono" style={{ fontSize: 12 }}>{p.risk_score_change || '—'}</td>
+                    <td>
+                      <span className={`badge ${p.urgency === 'CRITICAL' ? 'badge-critical' : p.urgency === 'HIGH' ? 'badge-high' : 'badge-stable'}`}>
+                        {p.urgency}
+                      </span>
+                    </td>
+                    <td>
+                      {p.window_open ? (
+                        <span className="badge badge-critical">Active Window</span>
+                      ) : (
+                        <span className="badge badge-neutral">Closed</span>
+                      )}
+                    </td>
+                    <td className="text-mono" style={{ fontSize: 12 }}>{p.threshold_used}%</td>
                   </tr>
                 ))}
               </tbody>

@@ -50,7 +50,6 @@ export default function VitalsEntryForm({ patientId, onVitalPosted }: Props) {
     try {
       const res = await post<VitalPostResponse>(`/patients/${patientId}/vitals`, body);
       onVitalPosted(res.prediction_triggered);
-      // Reset form
       setFields((f) => ({
         ...f,
         heart_rate: '', bp_systolic: '', bp_diastolic: '', temperature: '',
@@ -76,23 +75,39 @@ export default function VitalsEntryForm({ patientId, onVitalPosted }: Props) {
   }
 
   return (
-    <div className="card">
-      <button
-        className="text-heading"
-        style={{
-          background: 'none', border: 'none', cursor: 'pointer', display: 'flex',
-          alignItems: 'center', gap: 6, padding: 0, fontFamily: 'var(--font-sans)',
-          fontWeight: 500, fontSize: 16, color: 'var(--color-text-primary)',
-        }}
-        onClick={() => setCollapsed(!collapsed)}
-      >
-        {collapsed ? '＋' : '−'} Enter Vitals
-      </button>
+    <div className="card" style={{ padding: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>
+            add_chart
+          </span>
+          <div>
+            <h3 className="font-headline-md" style={{ margin: 0 }}>
+              Bedside Telemetry Entry
+            </h3>
+            <p style={{ fontSize: 12, color: 'var(--color-on-surface-variant)', margin: '2px 0 0' }}>
+              Manual physiologic vital signs recording with immediate inference trigger
+            </p>
+          </div>
+        </div>
+
+        <button
+          className="btn btn-sm btn-secondary"
+          type="button"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+            {collapsed ? 'add' : 'remove'}
+          </span>
+          <span>{collapsed ? 'Open Entry Form' : 'Collapse'}</span>
+        </button>
+      </div>
+
       {!collapsed && (
-        <form onSubmit={handleSubmit} style={{ marginTop: 12 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
-            <div className="form-group">
-              <label className="form-label">Timestamp</label>
+        <form onSubmit={handleSubmit} style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14 }}>
+            <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <label className="form-label">Measurement Timestamp</label>
               <input
                 className="form-input"
                 type="datetime-local"
@@ -100,17 +115,18 @@ export default function VitalsEntryForm({ patientId, onVitalPosted }: Props) {
                 onChange={(e) => handleChange('timestamp', e.target.value)}
               />
             </div>
+
             {[
-              { key: 'heart_rate', label: 'HR (bpm)' },
-              { key: 'bp_systolic', label: 'BP Sys' },
-              { key: 'bp_diastolic', label: 'BP Dia' },
-              { key: 'temperature', label: 'Temp (°C)' },
-              { key: 'respiratory_rate', label: 'RR' },
-              { key: 'spo2', label: 'SpO2' },
-              { key: 'wbc', label: 'WBC' },
-              { key: 'lactate', label: 'Lactate' },
-              { key: 'creatinine', label: 'Creatinine' },
-              { key: 'urine_output', label: 'Urine (mL)' },
+              { key: 'heart_rate', label: 'Heart Rate (bpm)' },
+              { key: 'bp_systolic', label: 'BP Systolic (mmHg)' },
+              { key: 'bp_diastolic', label: 'BP Diastolic (mmHg)' },
+              { key: 'temperature', label: 'Temperature (°C)' },
+              { key: 'respiratory_rate', label: 'Resp. Rate (/min)' },
+              { key: 'spo2', label: 'SpO2 (%)' },
+              { key: 'wbc', label: 'WBC (10^3/uL)' },
+              { key: 'lactate', label: 'Lactate (mmol/L)' },
+              { key: 'creatinine', label: 'Creatinine (mg/dL)' },
+              { key: 'urine_output', label: 'Urine Output (mL)' },
             ].map(({ key, label }) => (
               <div className="form-group" key={key}>
                 <label className="form-label">{label}</label>
@@ -118,6 +134,7 @@ export default function VitalsEntryForm({ patientId, onVitalPosted }: Props) {
                   className={`form-input ${errors[key] ? 'error' : ''}`}
                   type="number"
                   step="any"
+                  placeholder="—"
                   value={(fields as Record<string, string>)[key]}
                   onChange={(e) => handleChange(key, e.target.value)}
                 />
@@ -125,9 +142,30 @@ export default function VitalsEntryForm({ patientId, onVitalPosted }: Props) {
               </div>
             ))}
           </div>
-          <button className="btn btn-primary" type="submit" disabled={loading} style={{ marginTop: 12 }}>
-            {loading ? 'Submitting…' : 'Submit Vitals'}
-          </button>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+            <button
+              className="btn btn-ghost"
+              type="button"
+              onClick={() => setCollapsed(true)}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? (
+                'Submitting Telemetry…'
+              ) : (
+                <>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>bolt</span>
+                  <span>Record &amp; Trigger Prediction</span>
+                </>
+              )}
+            </button>
+          </div>
         </form>
       )}
     </div>

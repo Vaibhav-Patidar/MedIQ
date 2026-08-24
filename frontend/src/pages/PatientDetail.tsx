@@ -7,7 +7,6 @@ import { usePredictionsStore } from '../stores/predictions';
 import { useVitalsStore } from '../stores/vitals';
 import { useVitalsSocket } from '../hooks/useVitalsSocket';
 import PatientHeader from '../components/PatientHeader';
-import RiskScoreCard from '../components/RiskScoreCard';
 import RiskTrajectoryChart from '../components/RiskTrajectoryChart';
 import ShapPanel from '../components/ShapPanel';
 import VitalsTable from '../components/VitalsTable';
@@ -81,11 +80,9 @@ export default function PatientDetail() {
 
   async function handleVitalPosted(triggered: boolean) {
     if (triggered && id) {
-      // Poll once after 1s, once more after 3s
       setTimeout(() => fetchPrediction(), 1000);
       setTimeout(() => fetchPrediction(), 3000);
     }
-    // Also refresh vitals list
     if (id) {
       try {
         const vit = await get<VitalReading[]>(`/patients/${id}/vitals/latest`);
@@ -95,19 +92,18 @@ export default function PatientDetail() {
   }
 
   function handleInterventionSuccess() {
-    // Trigger graph re-fetch by changing key
     setGraphKey((k) => k + 1);
   }
 
   if (loading) {
     return (
       <div className="flex-col">
-        <div className="skeleton skeleton-card" style={{ height: 100 }} />
+        <div className="skeleton" style={{ height: 160, borderRadius: 'var(--radius-xl)' }} />
         <div className="grid-2">
-          <div className="skeleton skeleton-card" style={{ height: 200 }} />
+          <div className="skeleton skeleton-chart" />
           <div className="skeleton skeleton-chart" />
         </div>
-        <div className="skeleton skeleton-card" style={{ height: 300 }} />
+        <div className="skeleton" style={{ height: 300 }} />
       </div>
     );
   }
@@ -121,9 +117,8 @@ export default function PatientDetail() {
     );
   }
 
-  // Find current window_id for intervention modal
   const currentWindowId = prediction?.window_open
-    ? undefined // We don't have window_id from prediction; will be null in the modal
+    ? undefined
     : null;
 
   const isAlzheimers = Boolean(
@@ -135,83 +130,118 @@ export default function PatientDetail() {
     : ['overview', 'history', 'graph'];
 
   return (
-    <div className="flex-col">
-      <PatientHeader patient={patient} />
+    <div className="flex-col" style={{ gap: 24 }}>
+      {/* ── Patient Hero Header with Sepsis Gauge ── */}
+      <PatientHeader
+        patient={patient}
+        prediction={prediction}
+        onIntervene={() => setShowModal(true)}
+      />
 
-      {/* Tabs */}
-      <div className="tab-bar">
-        {availableTabs.map((tab) => (
+      {/* ── Tab Navigation Bar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div className="tab-bar">
+          {availableTabs.map((tab) => (
+            <button
+              key={tab}
+              className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              {tab === 'overview' && <span className="material-symbols-outlined" style={{ fontSize: 16 }}>dashboard</span>}
+              {tab === 'history' && <span className="material-symbols-outlined" style={{ fontSize: 16 }}>history</span>}
+              {tab === 'graph' && <span className="material-symbols-outlined" style={{ fontSize: 16 }}>account_tree</span>}
+              {tab === 'imaging' && <span className="material-symbols-outlined" style={{ fontSize: 16 }}>medical_information</span>}
+              <span>
+                {tab === 'overview' && 'Clinical Overview'}
+                {tab === 'history' && 'Prediction History'}
+                {tab === 'graph' && 'Ontology Graph'}
+                {tab === 'imaging' && 'Neuro Imaging'}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {prediction?.window_open && (
           <button
-            key={tab}
-            className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
+            className="btn btn-danger"
+            onClick={() => setShowModal(true)}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            <span className="material-symbols-outlined">emergency</span>
+            <span>Record Immediate Intervention</span>
           </button>
-        ))}
+        )}
       </div>
 
-      {/* Tab Content */}
+      {/* ── Tab Content ── */}
       {activeTab === 'overview' && (
-        <div className="flex-col">
-          <div className="grid-2">
-            {/* Risk Score Card or Insufficient Data */}
-            {prediction ? (
-              <RiskScoreCard
-                prediction={prediction}
-                onIntervene={() => setShowModal(true)}
-              />
-            ) : insufficientData ? (
-              <div className="card" style={{ opacity: 0.7 }}>
-                <span className="text-label">Sepsis Risk Score</span>
-                <div style={{ marginTop: 16, textAlign: 'center', padding: '20px 0' }}>
-                  <p style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>
-                    Insufficient data sequence. 2 hours of vitals required for Sepsis prediction.
-                  </p>
-                  {insufficientData.hours_available !== undefined && (
-                    <p className="text-mono" style={{ marginTop: 8, fontSize: 13, color: 'var(--color-text-muted)' }}>
-                      {insufficientData.hours_available.toFixed(1)}h available / {insufficientData.hours_required || 2}h required
-                    </p>
-                  )}
+        <div className="flex-col" style={{ gap: 24 }}>
+          {/* Insufficient Data State */}
+          {insufficientData && (
+            <div className="card" style={{
+              background: 'var(--color-surface-container-low)',
+              border: '1px dashed var(--color-outline)',
+              textAlign: 'center',
+              padding: '32px 24px',
+            }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 36, color: 'var(--color-primary)', marginBottom: 8, display: 'block' }}>
+                hourglass_top
+              </span>
+              <h3 className="font-headline-md" style={{ margin: '0 0 6px' }}>
+                Accumulating Telemetry Baseline
+              </h3>
+              <p style={{ color: 'var(--color-on-surface-variant)', fontSize: 14, margin: '0 auto', maxWidth: 460 }}>
+                A minimum of 2 hours of continuous vitals time-series is required to generate reliable multi-parameter sepsis trajectory predictions.
+              </p>
+              {insufficientData.hours_available !== undefined && (
+                <div style={{ marginTop: 12 }}>
+                  <span className="badge badge-neutral text-mono" style={{ fontSize: 12 }}>
+                    {insufficientData.hours_available.toFixed(1)}h Available / {insufficientData.hours_required || 2}h Required
+                  </span>
                 </div>
-              </div>
-            ) : (
-              <div className="card" style={{ opacity: 0.7 }}>
-                <span className="text-label">Sepsis Risk Score</span>
-                <div className="empty-state">No prediction available</div>
-              </div>
-            )}
+              )}
+            </div>
+          )}
 
-            {/* Trajectory Chart */}
+          {/* Trajectory and Explainability Grid */}
+          <div className="grid-2">
             {prediction ? (
               <RiskTrajectoryChart prediction={prediction} />
             ) : (
-              <div className="card" style={{ opacity: 0.7 }}>
-                <span className="text-label">6-Hour Predicted Risk Trajectory</span>
-                <div className="empty-state" style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {insufficientData
-                    ? 'Insufficient data for trajectory'
-                    : 'No prediction data available'}
-                </div>
+              <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: 280 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 32, color: 'var(--color-outline)', marginBottom: 8 }}>
+                  show_chart
+                </span>
+                <span style={{ color: 'var(--color-on-surface-variant)', fontSize: 14 }}>
+                  {insufficientData ? 'Trajectory will render after 2h of vitals' : 'No prediction trajectory available'}
+                </span>
+              </div>
+            )}
+
+            {prediction && prediction.shap_explanation.length > 0 ? (
+              <ShapPanel
+                features={prediction.shap_explanation}
+                onHoverFeature={setHighlightFeature}
+              />
+            ) : (
+              <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: 280 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 32, color: 'var(--color-outline)', marginBottom: 8 }}>
+                  psychology
+                </span>
+                <span style={{ color: 'var(--color-on-surface-variant)', fontSize: 14 }}>
+                  Feature impact analysis pending next model inference run
+                </span>
               </div>
             )}
           </div>
 
-          {/* SHAP Panel */}
-          {prediction && prediction.shap_explanation.length > 0 && (
-            <ShapPanel
-              features={prediction.shap_explanation}
-              onHoverFeature={setHighlightFeature}
-            />
-          )}
-
-          {/* Vitals Table */}
+          {/* Vitals History Table */}
           <VitalsTable
             vitals={vitals || []}
             highlightFeature={highlightFeature}
           />
 
-          {/* Vitals Entry Form */}
+          {/* Bedside Vitals Entry Form */}
           <VitalsEntryForm
             patientId={id!}
             onVitalPosted={handleVitalPosted}
@@ -223,7 +253,7 @@ export default function PatientDetail() {
       {activeTab === 'graph' && <GraphTab key={graphKey} patientId={id!} />}
       {activeTab === 'imaging' && <ImagingTab />}
 
-      {/* Intervention Modal */}
+      {/* ── Intervention Modal ── */}
       {showModal && (
         <InterventionModal
           patientId={id!}

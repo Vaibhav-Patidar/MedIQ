@@ -12,42 +12,76 @@ export default function Sidebar() {
   }
 
   return (
-    <nav className="sidebar">
+    <aside className="sidebar">
+      {/* ── Brand Logo ── */}
       <div className="sidebar-logo">
-        <img src="/logo-icon.svg" alt="MedIQ" style={{ width: 32, height: 32 }} />
-        <span>MedIQ</span>
+        <div className="sidebar-logo-icon">M</div>
+        <span className="sidebar-logo-text">MedIQ</span>
       </div>
-      <NavLink to="/dashboard" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
-        </svg>
-        Dashboard
-      </NavLink>
-      <NavLink to="/alerts" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-        Alert Center
-      </NavLink>
-      <NavLink to="/patients/new" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        New Patient
-      </NavLink>
-      <div style={{ flex: 1 }} />
-      {user && (
-        <div style={{ padding: '8px 12px', fontSize: 13, color: 'var(--color-text-secondary)' }}>
-          {user.name}
+
+      {/* ── Nav Links ── */}
+      <nav className="sidebar-nav">
+        <NavLink
+          to="/dashboard"
+          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+        >
+          <span className="material-symbols-outlined">emergency_home</span>
+          <span>Triage Dashboard</span>
+        </NavLink>
+
+        <NavLink
+          to="/alerts"
+          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+        >
+          <span className="material-symbols-outlined">notifications_active</span>
+          <span>Alert Center</span>
+        </NavLink>
+
+        <NavLink
+          to="/patients/new"
+          className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+        >
+          <span className="material-symbols-outlined">person_add</span>
+          <span>New Patient</span>
+        </NavLink>
+      </nav>
+
+      {/* ── Footer ── */}
+      <div className="sidebar-footer">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px' }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-secondary)' }} />
+          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-on-surface-variant)' }}>
+            Core Live Connection
+          </span>
         </div>
-      )}
-      <button className="sidebar-link" onClick={handleLogout}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
-        </svg>
-        Logout
-      </button>
-    </nav>
+
+        {user && (
+          <div style={{
+            padding: '8px 12px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--color-surface-container)',
+            fontSize: 12,
+            color: 'var(--color-on-surface)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            <span style={{ fontWeight: 600 }}>{user.name}</span>
+            <span style={{ fontSize: 10, color: 'var(--color-on-surface-variant)', textTransform: 'uppercase' }}>
+              {user.role}
+            </span>
+          </div>
+        )}
+
+        <button
+          className="sidebar-link"
+          onClick={handleLogout}
+          style={{ color: 'var(--color-error)' }}
+        >
+          <span className="material-symbols-outlined">logout</span>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </aside>
   );
 }
-

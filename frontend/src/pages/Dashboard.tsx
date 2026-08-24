@@ -13,9 +13,17 @@ export default function Dashboard() {
   const setActive = useAlertsStore((s) => s.setActive);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
   // Connect to alert WebSocket
   useAlertSocket();
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -38,13 +46,14 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex-col">
-        <div className="grid-3">
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
-          <div className="skeleton skeleton-card" />
+        <div className="grid-4">
+          <div className="skeleton" style={{ height: 120 }} />
+          <div className="skeleton" style={{ height: 120 }} />
+          <div className="skeleton" style={{ height: 120 }} />
+          <div className="skeleton" style={{ height: 120 }} />
         </div>
-        <div className="skeleton skeleton-card" style={{ height: 200 }} />
-        <div className="skeleton skeleton-card" style={{ height: 300 }} />
+        <div className="skeleton" style={{ height: 200 }} />
+        <div className="skeleton" style={{ height: 400 }} />
       </div>
     );
   }
@@ -60,9 +69,42 @@ export default function Dashboard() {
 
   return (
     <div className="flex-col">
-      <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Dashboard</h1>
+      {/* ── Page Header Section ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
+        <div>
+          <p className="font-label-md" style={{ color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>
+            System Live Telemetry
+          </p>
+          <h1 className="font-display-lg" style={{ margin: 0 }}>
+            Triage Dashboard
+          </h1>
+        </div>
+
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          background: 'var(--color-surface-container-high)',
+          padding: '8px 18px',
+          borderRadius: 'var(--radius-full)',
+          fontSize: 12,
+          fontWeight: 600,
+          color: 'var(--color-on-surface-variant)',
+        }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-secondary)' }} />
+          <span>Live Data Stream</span>
+          <span style={{ color: 'var(--color-outline)' }}>|</span>
+          <span className="text-mono">{currentTime}</span>
+        </div>
+      </div>
+
+      {/* ── Key Metrics Cards ── */}
       <QuickStats />
+
+      {/* ── Live Alerts & Intervention Windows ── */}
       <ActiveAlertsPanel compact />
+
+      {/* ── Patient Cohort Table ── */}
       <PatientList />
     </div>
   );

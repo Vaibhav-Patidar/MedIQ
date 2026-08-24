@@ -1,7 +1,7 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import Sidebar from '../components/Sidebar';
-import { ConnectionChip } from '../components/ConnectionChip';
+import TopHeader from '../components/TopHeader';
 import { ToastContainer } from '../components/ui/ToastContainer';
 
 export default function AppShell() {
@@ -14,10 +14,12 @@ export default function AppShell() {
   return (
     <div className="app-shell">
       <Sidebar />
-      <main className="main-content">
-        <Outlet />
-      </main>
-      <ConnectionChip />
+      <div className="main-wrapper">
+        <TopHeader />
+        <main className="main-content">
+          <Outlet />
+        </main>
+      </div>
       <ToastContainer />
     </div>
   );

@@ -17,28 +17,48 @@ export default function ShapPanel({ features, onHoverFeature }: Props) {
   const maxImpact = Math.max(...features.map((f) => parseShapImpact(f.impact).value), 1);
 
   return (
-    <div className="card">
-      <h2 className="text-heading" style={{ marginBottom: 12 }}>
-        SHAP Feature Attribution
-      </h2>
-      <div className="flex-col" style={{ gap: 8 }}>
+    <div className="card" style={{ padding: 24 }}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <div style={{
+          width: 40,
+          height: 40,
+          borderRadius: 'var(--radius-md)',
+          background: 'var(--color-secondary-container)',
+          color: 'var(--color-on-secondary-container)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <span className="material-symbols-outlined">psychology</span>
+        </div>
+        <div>
+          <h3 className="font-headline-md" style={{ margin: 0 }}>
+            Risk Drivers &amp; Explainability
+          </h3>
+          <p style={{ fontSize: 12, color: 'var(--color-on-surface-variant)', margin: '2px 0 0' }}>
+            Model Feature Attribution (TreeSHAP Decomposition)
+          </p>
+        </div>
+      </div>
+
+      {/* ── Feature Attribution Bars ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {features.map((f, i) => {
           const { value, positive } = parseShapImpact(f.impact);
-          const pct = (value / maxImpact) * 100;
+          const pct = Math.min((value / maxImpact) * 100, 100);
           const isHovered = hoveredIdx === i;
 
           return (
             <div
               key={i}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '6px 8px',
-                borderRadius: 'var(--radius)',
-                background: isHovered ? '#F1F5F9' : 'transparent',
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-md)',
+                background: isHovered ? 'var(--color-surface-container-high)' : 'var(--color-surface-container-low)',
+                border: '1px solid var(--color-outline-variant)',
                 cursor: 'pointer',
-                transition: 'background 150ms linear',
+                transition: 'all var(--transition)',
               }}
               onMouseEnter={() => {
                 setHoveredIdx(i);
@@ -49,38 +69,46 @@ export default function ShapPanel({ features, onHoverFeature }: Props) {
                 onHoverFeature?.(null);
               }}
             >
-              <span style={{ width: 100, fontSize: 13, fontWeight: 500, flexShrink: 0 }}>
-                {f.feature}
-              </span>
-              <span className="text-mono" style={{ width: 50, fontSize: 12, flexShrink: 0, color: 'var(--color-text-secondary)' }}>
-                {f.value}
-              </span>
-              <div style={{ flex: 1, display: 'flex', justifyContent: positive ? 'flex-start' : 'flex-end' }}>
-                <div
-                  style={{
-                    width: `${Math.max(pct, 4)}%`,
-                    height: 18,
-                    borderRadius: 2,
-                    background: positive ? '#DC262640' : '#0284C740',
-                    border: `1px solid ${positive ? '#DC2626' : '#0284C7'}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <span style={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    color: positive ? 'var(--color-critical)' : 'var(--color-info)',
-                    whiteSpace: 'nowrap',
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-on-surface)' }}>
+                    {f.feature}
+                  </span>
+                  <span className="text-mono" style={{ fontSize: 12, color: 'var(--color-on-surface-variant)' }}>
+                    ({f.value})
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="text-mono" style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: positive ? 'var(--color-error)' : 'var(--color-primary)',
                   }}>
                     {f.impact}
                   </span>
+                  <span className={`badge ${positive ? 'badge-critical' : 'badge-stable'}`} style={{ fontSize: 10, padding: '2px 6px' }}>
+                    {positive ? '↑ Risk' : '↓ Protective'}
+                  </span>
                 </div>
               </div>
-              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', width: 90, textAlign: 'right', flexShrink: 0 }}>
-                {positive ? 'Increases risk' : 'Protective'}
-              </span>
+
+              {/* Visual Impact Bar */}
+              <div style={{
+                width: '100%',
+                height: 6,
+                borderRadius: 3,
+                background: 'var(--color-surface-container-highest)',
+                overflow: 'hidden',
+              }}>
+                <div style={{
+                  width: `${Math.max(pct, 6)}%`,
+                  height: '100%',
+                  background: positive ? 'var(--color-error)' : 'var(--color-primary)',
+                  borderRadius: 3,
+                  transition: 'width 0.4s ease',
+                }} />
+              </div>
             </div>
           );
         })}

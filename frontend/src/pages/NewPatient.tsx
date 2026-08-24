@@ -13,19 +13,18 @@ export default function NewPatient() {
   const [sex, setSex] = useState('M');
   const [bloodType, setBloodType] = useState('O+');
   const [admissionDate, setAdmissionDate] = useState(new Date().toISOString().slice(0, 16));
-  const [ward, setWard] = useState('ICU-1');
-  const [bedNumber, setBedNumber] = useState('');
+  const [ward, setWard] = useState('ICU-3');
+  const [bedNumber, setBedNumber] = useState('12');
 
-  // Conditions
   const [conditions, setConditions] = useState<{ name: string; icd_code: string; type: string }[]>([
     { name: 'Sepsis', icd_code: 'A41.9', type: 'critical' },
   ]);
 
-  // Comorbidity preset
-  const [comorbidityPreset, setComorbidityPreset] = useState('none');
+  const [comorbidityPreset, setComorbidityPreset] = useState('diabetes');
 
-  // Medications
-  const [medications, setMedications] = useState<{ name: string; dosage: string; frequency: string }[]>([]);
+  const [medications, setMedications] = useState<{ name: string; dosage: string; frequency: string }[]>([
+    { name: 'Norepinephrine', dosage: '0.1 mcg/kg/min', frequency: 'Continuous' },
+  ]);
 
   function addCondition() {
     setConditions([...conditions, { name: '', icd_code: '', type: 'critical' }]);
@@ -59,13 +58,13 @@ export default function NewPatient() {
     const comorbidities: PatientCreate['comorbidities'] = [];
     if (comorbidityPreset === 'diabetes') {
       comorbidities.push({
-        name: 'Diabetes',
+        name: 'Diabetes Mellitus',
         threshold_adjustment: 55,
         adjustment_reason: 'diabetic_lactate_sensitivity',
       });
     } else if (comorbidityPreset === 'elderly') {
       comorbidities.push({
-        name: 'Elderly >65',
+        name: 'Geriatric Risk (>65)',
         threshold_adjustment: 60,
         adjustment_reason: 'elderly_reduced_reserve',
       });
@@ -88,134 +87,298 @@ export default function NewPatient() {
       const result = await post<PatientDetail>('/patients', body);
       navigate(`/patients/${result.patient_id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create patient');
+      setError(err instanceof Error ? err.message : 'Failed to create patient record');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div style={{ maxWidth: 700 }}>
-      <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>New Patient</h1>
-      <form onSubmit={handleSubmit}>
-        <div className="card flex-col" style={{ marginBottom: 'var(--gap)' }}>
-          <h2 className="text-heading">Patient Information</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+    <div style={{ maxWidth: 840, margin: '0 auto' }}>
+      {/* ── Header ── */}
+      <div style={{ marginBottom: 28 }}>
+        <p className="font-label-sm" style={{ color: 'var(--color-primary)', marginBottom: 4 }}>
+          Clinical Intake &amp; Registry
+        </p>
+        <h1 className="font-display-lg" style={{ margin: 0 }}>
+          Admit New Patient
+        </h1>
+        <p style={{ fontSize: 13, color: 'var(--color-on-surface-variant)', marginTop: 4 }}>
+          Initialize patient graph entity, baseline conditions, and automated telemetry tracking
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {/* ── Section 1: Demographics ── */}
+        <div className="card" style={{ padding: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>
+              person
+            </span>
+            <h3 className="font-headline-md" style={{ margin: 0 }}>
+              Demographics &amp; Bed Assignment
+            </h3>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
             <div className="form-group">
               <label className="form-label">Full Name</label>
-              <input className="form-input" value={name} onChange={(e) => setName(e.target.value)} required />
+              <input
+                className="form-input"
+                placeholder="e.g. Ramesh Yadav"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
             </div>
+
             <div className="form-group">
               <label className="form-label">Age</label>
-              <input className="form-input" type="number" value={age} onChange={(e) => setAge(e.target.value)} required />
+              <input
+                className="form-input"
+                type="number"
+                placeholder="e.g. 58"
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                required
+              />
             </div>
+
             <div className="form-group">
-              <label className="form-label">Sex</label>
-              <select className="form-input" value={sex} onChange={(e) => setSex(e.target.value)}>
+              <label className="form-label">Biological Sex</label>
+              <select className="form-select" value={sex} onChange={(e) => setSex(e.target.value)}>
                 <option value="M">Male</option>
                 <option value="F">Female</option>
               </select>
             </div>
+
             <div className="form-group">
               <label className="form-label">Blood Type</label>
-              <select className="form-input" value={bloodType} onChange={(e) => setBloodType(e.target.value)}>
+              <select className="form-select" value={bloodType} onChange={(e) => setBloodType(e.target.value)}>
                 {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bt) => (
                   <option key={bt} value={bt}>{bt}</option>
                 ))}
               </select>
             </div>
+
             <div className="form-group">
-              <label className="form-label">Admission Date</label>
-              <input className="form-input" type="datetime-local" value={admissionDate} onChange={(e) => setAdmissionDate(e.target.value)} />
+              <label className="form-label">Admission Timestamp</label>
+              <input
+                className="form-input"
+                type="datetime-local"
+                value={admissionDate}
+                onChange={(e) => setAdmissionDate(e.target.value)}
+              />
             </div>
+
             <div className="form-group">
-              <label className="form-label">Ward</label>
-              <input className="form-input" value={ward} onChange={(e) => setWard(e.target.value)} required />
+              <label className="form-label">Admission Unit / Ward</label>
+              <select className="form-select" value={ward} onChange={(e) => setWard(e.target.value)}>
+                <option value="ICU-3">ICU-3 — Critical Care</option>
+                <option value="ICU-2">ICU-2 — Sepsis & Respiratory</option>
+                <option value="ICU-1">ICU-1 — Surgical Intensive</option>
+                <option value="HDU-1">HDU-1 — High Dependency Unit</option>
+              </select>
             </div>
+
             <div className="form-group">
-              <label className="form-label">Bed Number</label>
-              <input className="form-input" value={bedNumber} onChange={(e) => setBedNumber(e.target.value)} required />
+              <label className="form-label">Assigned Bed Number</label>
+              <input
+                className="form-input"
+                placeholder="e.g. 12"
+                value={bedNumber}
+                onChange={(e) => setBedNumber(e.target.value)}
+                required
+              />
             </div>
           </div>
         </div>
 
-        {/* Conditions */}
-        <div className="card flex-col" style={{ marginBottom: 'var(--gap)' }}>
-          <div className="flex-row" style={{ justifyContent: 'space-between' }}>
-            <h2 className="text-heading">Conditions</h2>
-            <button type="button" className="btn btn-sm" onClick={addCondition}>+ Add</button>
-          </div>
-          {conditions.map((c, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px auto', gap: 8, alignItems: 'end' }}>
-              <div className="form-group">
-                <label className="form-label">Name</label>
-                <input className="form-input" value={c.name} onChange={(e) => updateCondition(i, 'name', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">ICD Code</label>
-                <input className="form-input" value={c.icd_code} onChange={(e) => updateCondition(i, 'icd_code', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Type</label>
-                <select className="form-input" value={c.type} onChange={(e) => updateCondition(i, 'type', e.target.value)}>
-                  <option value="critical">Critical</option>
-                  <option value="chronic">Chronic</option>
-                </select>
-              </div>
-              <button type="button" className="btn btn-sm" onClick={() => removeCondition(i)} style={{ marginBottom: 4 }}>×</button>
+        {/* ── Section 2: Clinical Diagnoses & ICD Codes ── */}
+        <div className="card" style={{ padding: 28 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>
+                diagnosis
+              </span>
+              <h3 className="font-headline-md" style={{ margin: 0 }}>
+                Primary Diagnoses &amp; ICD-10
+              </h3>
             </div>
-          ))}
+            <button type="button" className="btn btn-sm btn-secondary" onClick={addCondition}>
+              + Add Diagnosis
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {conditions.map((c, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 12, alignItems: 'center' }}>
+                <div className="form-group">
+                  <label className="form-label">Diagnosis Name</label>
+                  <input
+                    className="form-input"
+                    placeholder="e.g. Sepsis / Severe Pneumonia"
+                    value={c.name}
+                    onChange={(e) => updateCondition(i, 'name', e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">ICD-10 Code</label>
+                  <input
+                    className="form-input"
+                    placeholder="A41.9"
+                    value={c.icd_code}
+                    onChange={(e) => updateCondition(i, 'icd_code', e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Acuity</label>
+                  <select
+                    className="form-select"
+                    value={c.type}
+                    onChange={(e) => updateCondition(i, 'type', e.target.value)}
+                  >
+                    <option value="critical">Critical</option>
+                    <option value="chronic">Chronic</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => removeCondition(i)}
+                  style={{ alignSelf: 'flex-end', marginBottom: 2 }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Comorbidities */}
-        <div className="card flex-col" style={{ marginBottom: 'var(--gap)' }}>
-          <h2 className="text-heading">Comorbidities</h2>
+        {/* ── Section 3: Comorbidity & Threshold Preset ── */}
+        <div className="card" style={{ padding: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>
+              tune
+            </span>
+            <div>
+              <h3 className="font-headline-md" style={{ margin: 0 }}>
+                Ontology Risk Threshold Tuning
+              </h3>
+              <p style={{ fontSize: 12, color: 'var(--color-on-surface-variant)', margin: '2px 0 0' }}>
+                Automated threshold sensitivity adjustments based on patient comorbidities
+              </p>
+            </div>
+          </div>
+
           <div className="form-group">
-            <label className="form-label">Preset</label>
-            <select className="form-input" value={comorbidityPreset} onChange={(e) => setComorbidityPreset(e.target.value)}>
-              <option value="none">None</option>
-              <option value="diabetes">Diabetes (threshold 55, reason: diabetic_lactate_sensitivity)</option>
-              <option value="elderly">Elderly &gt;65 (threshold 60, reason: elderly_reduced_reserve)</option>
+            <label className="form-label">Comorbidity Rule Preset</label>
+            <select
+              className="form-select"
+              value={comorbidityPreset}
+              onChange={(e) => setComorbidityPreset(e.target.value)}
+            >
+              <option value="none">Standard Protocol (Default Threshold: 65%)</option>
+              <option value="diabetes">Diabetes Mellitus (Adjusted Threshold: 55% — Lactate Sensitivity)</option>
+              <option value="elderly">Geriatric Reserve / Age &gt; 65 (Adjusted Threshold: 60%)</option>
             </select>
           </div>
         </div>
 
-        {/* Medications */}
-        <div className="card flex-col" style={{ marginBottom: 'var(--gap)' }}>
-          <div className="flex-row" style={{ justifyContent: 'space-between' }}>
-            <h2 className="text-heading">Medications</h2>
-            <button type="button" className="btn btn-sm" onClick={addMedication}>+ Add</button>
-          </div>
-          {medications.map((m, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px auto', gap: 8, alignItems: 'end' }}>
-              <div className="form-group">
-                <label className="form-label">Name</label>
-                <input className="form-input" value={m.name} onChange={(e) => updateMedication(i, 'name', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Dosage</label>
-                <input className="form-input" value={m.dosage} onChange={(e) => updateMedication(i, 'dosage', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Frequency</label>
-                <select className="form-input" value={m.frequency} onChange={(e) => updateMedication(i, 'frequency', e.target.value)}>
-                  <option value="BID">BID</option>
-                  <option value="TID">TID</option>
-                  <option value="QID">QID</option>
-                  <option value="daily">Daily</option>
-                  <option value="PRN">PRN</option>
-                </select>
-              </div>
-              <button type="button" className="btn btn-sm" onClick={() => removeMedication(i)} style={{ marginBottom: 4 }}>×</button>
+        {/* ── Section 4: Initial Medications ── */}
+        <div className="card" style={{ padding: 28 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>
+                medication
+              </span>
+              <h3 className="font-headline-md" style={{ margin: 0 }}>
+                Active Inpatient Medications
+              </h3>
             </div>
-          ))}
+            <button type="button" className="btn btn-sm btn-secondary" onClick={addMedication}>
+              + Add Medication
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {medications.map((m, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr auto', gap: 12, alignItems: 'center' }}>
+                <div className="form-group">
+                  <label className="form-label">Drug Name</label>
+                  <input
+                    className="form-input"
+                    placeholder="e.g. Norepinephrine"
+                    value={m.name}
+                    onChange={(e) => updateMedication(i, 'name', e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Dosage</label>
+                  <input
+                    className="form-input"
+                    placeholder="0.1 mcg/kg/min"
+                    value={m.dosage}
+                    onChange={(e) => updateMedication(i, 'dosage', e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Frequency</label>
+                  <select
+                    className="form-select"
+                    value={m.frequency}
+                    onChange={(e) => updateMedication(i, 'frequency', e.target.value)}
+                  >
+                    <option value="Continuous">Continuous IV</option>
+                    <option value="BID">BID (Twice Daily)</option>
+                    <option value="TID">TID (Three Times)</option>
+                    <option value="QID">QID (Four Times)</option>
+                    <option value="Daily">Daily</option>
+                    <option value="PRN">PRN (As Needed)</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => removeMedication(i)}
+                  style={{ alignSelf: 'flex-end', marginBottom: 2 }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {error && <div className="error-banner" style={{ marginBottom: 12 }}>{error}</div>}
+        {error && (
+          <div className="error-banner">
+            <span>{error}</span>
+          </div>
+        )}
 
-        <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%' }}>
-          {loading ? 'Creating…' : 'Create Patient'}
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => navigate('/dashboard')}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="btn btn-primary btn-lg"
+            disabled={loading}
+          >
+            {loading ? (
+              'Creating Patient Graph Node…'
+            ) : (
+              <>
+                <span className="material-symbols-outlined">person_add</span>
+                <span>Admit &amp; Ingest to Telemetry Stream</span>
+              </>
+            )}
+          </button>
+        </div>
       </form>
     </div>
   );
