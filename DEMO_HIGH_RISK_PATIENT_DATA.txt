@@ -4,30 +4,21 @@
 
 Use these exact clinical values to demonstrate both:
 1. CASE A: GUARANTEED CRITICAL RISK PATIENT (99% Risk, Therapeutic Window OPEN)
-2. CASE B: GUARANTEED LOW RISK CONTROL PATIENT (Stable, Protective SHAP Drivers)
+2. CASE B: GUARANTEED LOW RISK CONTROL PATIENT (35% Risk, Protective SHAP Drivers)
 
 ================================================================================
-🔴 CASE A: GUARANTEED CRITICAL SEPSIS CASE (Risk Score: ~99%, Urgency: CRITICAL)
+🔴 CASE A: GUARANTEED CRITICAL SEPSIS (Risk: ~99%, Urgency: CRITICAL)
 ================================================================================
 
---------------------------------------------------------------------------------
-🏥 1. NEW PATIENT REGISTRATION (Demographics)
---------------------------------------------------------------------------------
-Navigate to: "+ New Patient" (Top Navbar or /patients/new)
-
+🏥 1. PATIENT REGISTRATION:
 • Full Name:           Ananya Sharma
 • Age:                 68
 • Gender:              Female (F)
 • Ward:                ICU-3
 • Bed Number:          12
-• Conditions / Rx:     Type 2 Diabetes Mellitus (E11.9), Hypertension (I10)
-• Diagnosed At:        Select any past date / time
+• Conditions:          Type 2 Diabetes Mellitus (E11.9), Hypertension (I10)
 
---------------------------------------------------------------------------------
-📈 2. TELEMETRY & VITALS DATA (Septic Shock / Acute Decompensation)
---------------------------------------------------------------------------------
-Click "Add Vitals" on the patient workspace and enter these acute readings:
-
+📈 2. TELEMETRY & VITALS (Click "Add Vitals"):
 • Heart Rate (HR):       128 bpm        (Severe Tachycardia)
 • Systolic BP (SBP):     80 mmHg        (Septic Shock Hypotension)
 • Diastolic BP (DBP):    46 mmHg        (MAP = 57.3 mmHg < 70 threshold)
@@ -35,18 +26,16 @@ Click "Add Vitals" on the patient workspace and enter these acute readings:
 • Temperature:           39.9 °C        (High-grade fever spike)
 • SpO2:                  88 %           (Tissue Hypoxia)
 • WBC Count:             21.0 x10^9/L   (Severe leukocytosis)
-• Serum Lactate:         5.4 mmol/L     (Severe anaerobic metabolic acidosis)
+• Serum Lactate:         5.4 mmol/L     (Severe anaerobic acidosis)
 • Serum Creatinine:      2.6 mg/dL      (Acute Kidney Injury)
 
---------------------------------------------------------------------------------
-🎯 3. EXPECTED LIVE UI OUTPUT (Case A)
---------------------------------------------------------------------------------
+🎯 3. EXPECTED LIVE UI OUTPUT:
 • Sepsis Risk Score:   99.0% (Critical Red Gauge)
 • Dynamic Threshold:   55.0% (Personalized Diabetic Lactate Threshold)
 • Urgency Badge:       CRITICAL (Pulsing Red)
 • Therapeutic Window:  ACTIVE / OPEN (3-Hour Golden Hour Resuscitation Bundle)
 • TreeSHAP Drivers:
-  - Lactate (5.4 mmol/L)      -> +31 points ↑ (Dominant driver)
+  - Lactate (5.4 mmol/L)      -> +31 points ↑ (Dominant risk driver)
   - Heart Rate (128 bpm)      -> +21 points ↑
   - WBC Count (21.0 x10^9/L)  -> +16 points ↑
   - SpO2 (88%)                -> +15 points ↑
@@ -55,26 +44,18 @@ Click "Add Vitals" on the patient workspace and enter these acute readings:
 
 
 ================================================================================
-🟢 CASE B: GUARANTEED LOW-RISK STABLE CONTROL (Risk Score: ~35%, Urgency: LOW)
+🟢 CASE B: GUARANTEED LOW-RISK STABLE CONTROL (Risk: ~35%, Urgency: LOW)
 ================================================================================
 
---------------------------------------------------------------------------------
-🏥 1. NEW PATIENT REGISTRATION (Demographics)
---------------------------------------------------------------------------------
-Navigate to: "+ New Patient" (Top Navbar or /patients/new)
-
+🏥 1. PATIENT REGISTRATION:
 • Full Name:           Rohan Verma
 • Age:                 29
 • Gender:              Male (M)
 • Ward:                ICU-1 (or General Ward)
 • Bed Number:          04
-• Conditions / Rx:     None (or Mild Seasonal Allergy)
+• Conditions:          None (or leave empty)
 
---------------------------------------------------------------------------------
-📈 2. TELEMETRY & VITALS DATA (Normal Healthy Physiology)
---------------------------------------------------------------------------------
-Click "Add Vitals" on the patient workspace and enter these healthy readings:
-
+📈 2. TELEMETRY & VITALS (Click "Add Vitals"):
 • Heart Rate (HR):       68 bpm         (Normal sinus rhythm)
 • Systolic BP (SBP):     118 mmHg       (Normotensive)
 • Diastolic BP (DBP):    76 mmHg        (MAP = 90.0 mmHg)
@@ -82,20 +63,18 @@ Click "Add Vitals" on the patient workspace and enter these healthy readings:
 • Temperature:           36.8 °C        (Afebrile / Normothermic)
 • SpO2:                  99 %           (Optimal oxygen saturation)
 • WBC Count:             6.5 x10^9/L    (Normal immune cell range)
-• Serum Lactate:         0.8 mmol/L     (Normal aerobic cellular metabolism)
+• Serum Lactate:         0.8 mmol/L     (Normal aerobic metabolism)
 • Serum Creatinine:      0.8 mg/dL      (Normal renal clearance)
 
---------------------------------------------------------------------------------
-🎯 3. EXPECTED LIVE UI OUTPUT (Case B)
---------------------------------------------------------------------------------
+🎯 3. EXPECTED LIVE UI OUTPUT:
 • Sepsis Risk Score:   35.4% (Healthy Green/Neutral Gauge)
-• Dynamic Threshold:   65.0% (Standard Non-Diabetic Threshold)
+• Dynamic Threshold:   65.0% (Standard Non-Diabetic Baseline Threshold)
 • Urgency Badge:       LOW (Green Stable Status)
-• Therapeutic Window:  CLOSED (Patient Stable, No Emergency Protocol Triggered)
+• Therapeutic Window:  CLOSED (Patient Stable, No Emergency Bundle)
 • TreeSHAP Drivers:    All Protective / Normalizing:
-  - SpO2 (99%)                -> -8 points ↓ (Protective driver)
-  - Heart Rate (68 bpm)       -> -5 points ↓ (Protective driver)
-  - MAP (90 mmHg)             -> -5 points ↓ (Protective driver)
-  - Respiratory Rate (14)     -> -5 points ↓ (Protective driver)
-  - Temperature (36.8 °C)     -> -4 points ↓ (Protective driver)
+  - SpO2 (99%)                -> -8 points ↓ (Protective factor)
+  - Heart Rate (68 bpm)       -> -5 points ↓ (Protective factor)
+  - MAP (90 mmHg)             -> -5 points ↓ (Protective factor)
+  - Respiratory Rate (14)     -> -5 points ↓ (Protective factor)
+  - Temperature (36.8 °C)     -> -4 points ↓ (Protective factor)
 ================================================================================
