@@ -1,9 +1,14 @@
 ================================================================================
-  MedIQ — HACKATHON LIVE DEMO CHEAT SHEET (GUARANTEED CRITICAL RISK CASE)
+  MedIQ — HACKATHON LIVE DEMO CHEAT SHEET (HIGH-RISK & LOW-RISK PROFILES)
 ================================================================================
 
-Use these exact clinical values to demonstrate a guaranteed CRITICAL SEPSIS alert 
-(Risk Score: ~99%, Urgency: CRITICAL, Window: OPEN, Real-time Escalation).
+Use these exact clinical values to demonstrate both:
+1. CASE A: GUARANTEED CRITICAL RISK PATIENT (99% Risk, Therapeutic Window OPEN)
+2. CASE B: GUARANTEED LOW RISK CONTROL PATIENT (Stable, Protective SHAP Drivers)
+
+================================================================================
+🔴 CASE A: GUARANTEED CRITICAL SEPSIS CASE (Risk Score: ~99%, Urgency: CRITICAL)
+================================================================================
 
 --------------------------------------------------------------------------------
 🏥 1. NEW PATIENT REGISTRATION (Demographics)
@@ -13,92 +18,84 @@ Navigate to: "+ New Patient" (Top Navbar or /patients/new)
 • Full Name:           Ananya Sharma
 • Age:                 68
 • Gender:              Female (F)
-• Ward:                ICU-3 (or HDU-1)
+• Ward:                ICU-3
 • Bed Number:          12
 • Conditions / Rx:     Type 2 Diabetes Mellitus (E11.9), Hypertension (I10)
 • Diagnosed At:        Select any past date / time
 
-*Why this matters: Type 2 Diabetes triggers the strict 55% diabetic lactate
- sensitivity threshold (PRD Rule F4), making early detection 2x faster.*
-
 --------------------------------------------------------------------------------
-📈 2. TELEMETRY & VITALS DATA (Step-by-Step Decompensation)
+📈 2. TELEMETRY & VITALS DATA (Septic Shock / Acute Decompensation)
 --------------------------------------------------------------------------------
-Click "Add Vitals" on the patient workspace. You can enter either the latest 
-acute reading or the 4-hour progression:
+Click "Add Vitals" on the patient workspace and enter these acute readings:
 
-[Hour -3 (Early Warning / Onset)]:
-• Heart Rate (HR):       105 bpm   (Tachycardia onset)
-• Systolic BP (SBP):     100 mmHg
-• Diastolic BP (DBP):    62 mmHg
-• Respiration (RR):      22 breaths/min
-• Temperature:           38.4 °C   (Fever spike)
-• SpO2:                  94 %
-• WBC Count:             13.8 x10^9/L
-• Serum Lactate:         2.8 mmol/L  (Elevated cellular hypoxia)
-• Serum Creatinine:      1.5 mg/dL
-
-[Hour -2 (Progression)]:
-• Heart Rate (HR):       114 bpm
-• Systolic BP (SBP):     94 mmHg
-• Diastolic BP (DBP):    56 mmHg
-• Respiration (RR):      24 breaths/min
-• Temperature:           38.9 °C
-• SpO2:                  92 %
-• WBC Count:             15.5 x10^9/L
-• Serum Lactate:         3.6 mmol/L
-• Serum Creatinine:      1.8 mg/dL
-
-[Hour -1 (Severe Decompensation)]:
-• Heart Rate (HR):       122 bpm
-• Systolic BP (SBP):     86 mmHg
-• Diastolic BP (DBP):    50 mmHg
-• Respiration (RR):      26 breaths/min
-• Temperature:           39.4 °C
-• SpO2:                  90 %
-• WBC Count:             18.2 x10^9/L
-• Serum Lactate:         4.5 mmol/L
-• Serum Creatinine:      2.2 mg/dL
-
-[Current Hour (Septic Shock Alert)]:
-• Heart Rate (HR):       128 bpm
-• Systolic BP (SBP):     80 mmHg   (Hypotension / Septic shock)
-• Diastolic BP (DBP):    46 mmHg
+• Heart Rate (HR):       128 bpm        (Severe Tachycardia)
+• Systolic BP (SBP):     80 mmHg        (Septic Shock Hypotension)
+• Diastolic BP (DBP):    46 mmHg        (MAP = 57.3 mmHg < 70 threshold)
 • Respiration (RR):      28 breaths/min (Tachypnea)
-• Temperature:           39.9 °C   (High grade fever)
-• SpO2:                  88 %      (Hypoxia)
-• WBC Count:             21.0 x10^9/L (Severe leukocytosis)
-• Serum Lactate:         5.4 mmol/L (Critical metabolic acidosis)
-• Serum Creatinine:      2.6 mg/dL (Acute Kidney Injury)
+• Temperature:           39.9 °C        (High-grade fever spike)
+• SpO2:                  88 %           (Tissue Hypoxia)
+• WBC Count:             21.0 x10^9/L   (Severe leukocytosis)
+• Serum Lactate:         5.4 mmol/L     (Severe anaerobic metabolic acidosis)
+• Serum Creatinine:      2.6 mg/dL      (Acute Kidney Injury)
 
 --------------------------------------------------------------------------------
-🎯 3. EXPECTED LIVE UI BEHAVIOUR TO SHOW JUDGES
+🎯 3. EXPECTED LIVE UI OUTPUT (Case A)
 --------------------------------------------------------------------------------
-1. Risk Gauge Indicator:
-   - Sepsis Risk Score: ~99.0% (Critical Red Ring)
-   - Dynamic Threshold: 55.0% (Personalized Diabetic Lactate Threshold)
-   - Urgency Badge: CRITICAL (Pulsing Red)
+• Sepsis Risk Score:   99.0% (Critical Red Gauge)
+• Dynamic Threshold:   55.0% (Personalized Diabetic Lactate Threshold)
+• Urgency Badge:       CRITICAL (Pulsing Red)
+• Therapeutic Window:  ACTIVE / OPEN (3-Hour Golden Hour Resuscitation Bundle)
+• TreeSHAP Drivers:
+  - Lactate (5.4 mmol/L)      -> +31 points ↑ (Dominant driver)
+  - Heart Rate (128 bpm)      -> +21 points ↑
+  - WBC Count (21.0 x10^9/L)  -> +16 points ↑
+  - SpO2 (88%)                -> +15 points ↑
+  - MAP (57.3 mmHg)           -> +15 points ↑
+• Care Team Action:    Auto-escalated to Dr. Rao (Critical Care Specialist)
 
-2. Explainability & Risk Drivers (TreeSHAP):
-   - Lactate (5.4 mmol/L)      -> +31 points ↑ (Dominant driver)
-   - Heart Rate (128 bpm)      -> +21 points ↑
-   - WBC Count (21.0 x10^9/L)  -> +16 points ↑
-   - SpO2 (88%)                -> +15 points ↑
-   - MAP (57.3 mmHg)           -> +15 points ↑ (Below 70 mmHg perfusion floor)
 
-3. 3-Hour Therapeutic Resuscitation Window:
-   - Status: ACTIVE / OPEN (Golden Hour Countdown Active)
-   - Protocol: Surviving Sepsis Campaign 3-Hour Bundle:
-     1. Administer 30 mL/kg IV crystalloid bolus for MAP < 65 mmHg
-     2. Obtain blood cultures prior to antibiotics
-     3. Initiate broad-spectrum IV antimicrobials (Meropenem / Vancomycin)
-     4. Remeasure serum lactate within 2-4 hours
+================================================================================
+🟢 CASE B: GUARANTEED LOW-RISK STABLE CONTROL (Risk Score: ~35%, Urgency: LOW)
+================================================================================
 
-4. Dynamic Ontology Knowledge Graph:
-   - Shows live linked nodes: Patient -> Sepsis (HIGH Risk) -> Type 2 Diabetes ->
-     Elevated Lactate -> Attending Critical Care Specialist (Dr. Rao).
+--------------------------------------------------------------------------------
+🏥 1. NEW PATIENT REGISTRATION (Demographics)
+--------------------------------------------------------------------------------
+Navigate to: "+ New Patient" (Top Navbar or /patients/new)
 
-5. Real-Time Alert & Care-Team Escalation:
-   - Broadcasts instant WebSocket notification across nursing stations.
-   - Escalates primary care physician (Dr. Mehta) to Critical Care Intensivist (Dr. Rao).
+• Full Name:           Rohan Verma
+• Age:                 29
+• Gender:              Male (M)
+• Ward:                ICU-1 (or General Ward)
+• Bed Number:          04
+• Conditions / Rx:     None (or Mild Seasonal Allergy)
+
+--------------------------------------------------------------------------------
+📈 2. TELEMETRY & VITALS DATA (Normal Healthy Physiology)
+--------------------------------------------------------------------------------
+Click "Add Vitals" on the patient workspace and enter these healthy readings:
+
+• Heart Rate (HR):       68 bpm         (Normal sinus rhythm)
+• Systolic BP (SBP):     118 mmHg       (Normotensive)
+• Diastolic BP (DBP):    76 mmHg        (MAP = 90.0 mmHg)
+• Respiration (RR):      14 breaths/min (Eupnea)
+• Temperature:           36.8 °C        (Afebrile / Normothermic)
+• SpO2:                  99 %           (Optimal oxygen saturation)
+• WBC Count:             6.5 x10^9/L    (Normal immune cell range)
+• Serum Lactate:         0.8 mmol/L     (Normal aerobic cellular metabolism)
+• Serum Creatinine:      0.8 mg/dL      (Normal renal clearance)
+
+--------------------------------------------------------------------------------
+🎯 3. EXPECTED LIVE UI OUTPUT (Case B)
+--------------------------------------------------------------------------------
+• Sepsis Risk Score:   35.4% (Healthy Green/Neutral Gauge)
+• Dynamic Threshold:   65.0% (Standard Non-Diabetic Threshold)
+• Urgency Badge:       LOW (Green Stable Status)
+• Therapeutic Window:  CLOSED (Patient Stable, No Emergency Protocol Triggered)
+• TreeSHAP Drivers:    All Protective / Normalizing:
+  - SpO2 (99%)                -> -8 points ↓ (Protective driver)
+  - Heart Rate (68 bpm)       -> -5 points ↓ (Protective driver)
+  - MAP (90 mmHg)             -> -5 points ↓ (Protective driver)
+  - Respiratory Rate (14)     -> -5 points ↓ (Protective driver)
+  - Temperature (36.8 °C)     -> -4 points ↓ (Protective driver)
 ================================================================================
