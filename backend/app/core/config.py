@@ -9,10 +9,21 @@ class Settings(BaseSettings):
     # PostgreSQL (defaults match the docker-compose service names)
     database_url: str = "postgresql://mediq:change-me-local-only@postgres:5432/mediq"
 
-    # Neo4j (defaults match the docker-compose service name)
+    # Neo4j (local Docker or AuraDB cloud instance)
     neo4j_url: str = "bolt://neo4j:7687"
+    neo4j_uri: str | None = None
     neo4j_user: str = "neo4j"
+    neo4j_username: str | None = None
     neo4j_password: str = "change-me-local-only"
+    neo4j_database: str | None = None
+
+    @property
+    def effective_neo4j_url(self) -> str:
+        return self.neo4j_uri or self.neo4j_url
+
+    @property
+    def effective_neo4j_user(self) -> str:
+        return self.neo4j_username or self.neo4j_user
 
     # ADR-002: 'neo4j' (default) or 'postgres_fk' fallback. Single flag flips
     # the ontology layer with no code changes.

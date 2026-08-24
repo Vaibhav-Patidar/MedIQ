@@ -5,7 +5,11 @@
 import type { ErrorEnvelope } from '../types';
 import { useAuthStore } from '../stores/auth';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+let RAW_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+// Normalize: ensure it ends with /api
+export const BASE_URL = RAW_BASE.replace(/\/+$/, '').endsWith('/api')
+  ? RAW_BASE.replace(/\/+$/, '')
+  : `${RAW_BASE.replace(/\/+$/, '')}/api`;
 
 export class ApiError extends Error {
   code: string;

@@ -160,7 +160,7 @@ SEED_CLINICIAN_PASSWORD=your-secure-password
 #### Step 3: Deploy Frontend to Vercel
 1. In `frontend/`, create or set `.env.production`:
 ```env
-VITE_API_BASE_URL=https://your-backend-api.onrender.com/api
+VITE_API_BASE_URL=https://mediq-fbwn.onrender.com
 VITE_WS_BASE_URL=wss://your-backend-api.onrender.com/ws
 ```
 2. Connect the GitHub repository to [Vercel](https://vercel.com).

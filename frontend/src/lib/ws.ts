@@ -5,8 +5,10 @@
 import type { WSEvent } from '../types';
 import { useAuthStore } from '../stores/auth';
 import { useWsStore } from '../stores/ws';
-
-const WS_BASE = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8000/ws';
+let RAW_WS = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8000/ws';
+export const WS_BASE = RAW_WS.replace(/\/+$/, '').endsWith('/ws')
+  ? RAW_WS.replace(/\/+$/, '')
+  : `${RAW_WS.replace(/\/+$/, '')}/ws`;
 
 type EventHandler = (data: unknown) => void;
 

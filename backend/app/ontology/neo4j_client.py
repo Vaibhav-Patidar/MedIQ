@@ -28,14 +28,15 @@ class Neo4jClient:
 
             settings = get_settings()
             self._driver = GraphDatabase.driver(
-                settings.neo4j_url,
-                auth=(settings.neo4j_user, settings.neo4j_password),
+                settings.effective_neo4j_url,
+                auth=(settings.effective_neo4j_user, settings.neo4j_password),
             )
             self._driver.verify_connectivity()
-            with self._driver.session() as session:
+            session_kwargs = {"database": settings.neo4j_database} if settings.neo4j_database else {}
+            with self._driver.session(**session_kwargs) as session:
                 session.run(cypher.CREATE_PATIENT_CONSTRAINT)
                 session.run(cypher.CREATE_CLINICIAN_CONSTRAINT)
-            logger.info("neo4j connected at %s", settings.neo4j_url)
+            logger.info("neo4j connected at %s", settings.effective_neo4j_url)
         except Exception as exc:
             logger.warning("neo4j unavailable (%s) — graph writes/reads disabled", exc)
             self._driver = None
@@ -57,7 +58,9 @@ class Neo4jClient:
             self.connect()
         if self._driver is None:
             return None
-        return self._driver.session()
+        settings = get_settings()
+        session_kwargs = {"database": settings.neo4j_database} if settings.neo4j_database else {}
+        return self._driver.session(**session_kwargs)
 
     def run(self, query: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         session = self._session()
