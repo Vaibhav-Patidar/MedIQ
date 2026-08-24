@@ -41,18 +41,20 @@ LIMIT 5
 # --- Ontology graph for /patients/{id}/graph (React Flow shape) --------------
 PATIENT_GRAPH = """
 MATCH (p:Patient {patient_id: $id})
-OPTIONAL MATCH (p)-[r1:HAS_CONDITION|COMORBID_WITH|ON_MEDICATION|ASSIGNED_TO|HAS_VITAL|HAS_SCAN]->(n1)
+OPTIONAL MATCH (p)-[r1:HAS_CONDITION|COMORBID_WITH|ON_MEDICATION|ASSIGNED_TO|HAS_SCAN]->(n1)
 OPTIONAL MATCH (p)-[:IN_PROGRESSION]->(ps:ProgressionState)
-OPTIONAL MATCH (ps)-[r2:OPENS_WINDOW]->(iw:InterventionWindow)
-OPTIONAL MATCH (p)-[r3:RECEIVED]->(i:Intervention)
+WITH p, r1, n1, ps
+ORDER BY ps.timestamp DESC
 WITH p,
      collect(DISTINCT {node: n1, rel: type(r1)}) AS direct,
-     collect(DISTINCT {node: ps, rel: 'IN_PROGRESSION'}) AS progressions,
-     collect(DISTINCT {node: iw, rel: 'OPENS_WINDOW'}) AS windows,
-     collect(DISTINCT {node: i, rel: 'RECEIVED'}) AS interventions
+     collect(DISTINCT {node: ps, rel: 'IN_PROGRESSION'})[0..1] AS progressions
+OPTIONAL MATCH (p)-[:IN_PROGRESSION]->(ps_latest:ProgressionState)-[r2:OPENS_WINDOW]->(iw:InterventionWindow)
+OPTIONAL MATCH (p)-[r3:RECEIVED]->(i:Intervention)
 OPTIONAL MATCH (p)-[sim:SIMILAR_TO]->(sp:Patient)
-RETURN p, direct, progressions, windows, interventions,
-       collect({node: sp, rel: 'SIMILAR_TO'}) AS similar
+RETURN p, direct, progressions,
+       collect(DISTINCT {node: iw, rel: 'OPENS_WINDOW'}) AS windows,
+       collect(DISTINCT {node: i, rel: 'RECEIVED'}) AS interventions,
+       collect(DISTINCT {node: sp, rel: 'SIMILAR_TO'}) AS similar
 """
 
 # --- Writes (mirror of the Postgres rows; Neo4j is the traversal layer) ------

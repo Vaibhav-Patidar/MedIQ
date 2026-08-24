@@ -40,7 +40,8 @@ export default function Login() {
       background: 'var(--color-bg)',
     }}>
       <div className="card" style={{ width: '100%', maxWidth: 400, padding: 32 }}>
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 24, textAlign: 'center' }}>
+          <img src="/logo-icon.svg" alt="MedIQ" style={{ width: 56, height: 56, marginBottom: 12 }} />
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--color-text-primary)' }}>
             MedIQ
           </h1>

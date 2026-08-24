@@ -131,31 +131,6 @@ PATIENTS = [
         "vitals_hours": 12,
         "predict": True,
     },
-    {
-        "key": "arjun", "name": "Arjun Patel", "age": 72, "sex": "M",
-        "blood_type": "A+", "ward": "General-1", "bed_number": "22",
-        "assigned_to": "Dr. Iyer",
-        "conditions": [
-            {"name": "Alzheimer's Disease", "icd_code": "G30.1", "type": "chronic"},
-        ],
-        "comorbidities": [
-            {"name": "Hypertension", "threshold_adjustment": None, "adjustment_reason": None},
-        ],
-        "medications": [
-            {"name": "Amlodipine", "dosage": "5mg", "frequency": "OD"},
-            {"name": "Donepezil", "dosage": "10mg", "frequency": "OD"},
-        ],
-        "vitals_start": {"heart_rate": 96, "bp_systolic": 130, "bp_diastolic": 80,
-                         "temperature": 37.1, "respiratory_rate": 18, "spo2": 97,
-                         "wbc": 9.5, "lactate": 1.7, "creatinine": 1.0,
-                         "urine_output": 50},
-        "vitals_end": {"heart_rate": 98, "bp_systolic": 128, "bp_diastolic": 78,
-                       "temperature": 37.2, "respiratory_rate": 18, "spo2": 97,
-                       "wbc": 9.8, "lactate": 1.9, "creatinine": 1.0,
-                       "urine_output": 50},
-        "vitals_hours": 12,
-        "predict": True,
-    },
     # Fresh admission: <2h of data -> insufficient_data state (manual QA checklist)
     {
         "key": "kavita", "name": "Kavita Sharma", "age": 45, "sex": "F",
@@ -210,12 +185,162 @@ def seed_neo4j_clinicians(clinician_rows) -> None:
 # the trained XGBoost directly — no hand-tuning, no manual threshold overrides.
 # ---------------------------------------------------------------------------
 SEPSIS_SAMPLES = [
-    {"file": "p016276.psv", "name": "Devika Menon",   # 75M case, febrile, septic at hour 81
-     "hours": 12, "assigned_to": "Dr. Rao", "predict": True},
-    {"file": "p002399.psv", "name": "Raghav Kulkarni",  # 75M case, septic at hour 79
-     "hours": 12, "assigned_to": "Dr. Iyer", "predict": True},
-    {"file": "p001583.psv", "name": "Meera Joshi",    # 59M case, never septic (stable control)
-     "hours": 12, "assigned_to": "Dr. Khan", "predict": True},
+    # ── Cherry-picked patients from training_sepsis (PhysioNet Challenge 2019) ──
+    # Each has demographics (name, age derived from PSV), clinical conditions,
+    # comorbidities, and medications added for demo realism.
+    {
+        "file": "p000001.psv",       # 83F, non-septic, stable elder
+        "name": "Kamala Krishnan",
+        "hours": 12,
+        "assigned_to": "Dr. Rao",
+        "predict": True,
+        "conditions": [
+            {"name": "Community Acquired Pneumonia", "icd_code": "J18.9", "type": "critical"},
+        ],
+        "comorbidities": [
+            {"name": "Hypertension", "threshold_adjustment": None, "adjustment_reason": None},
+            {"name": "Osteoarthritis", "threshold_adjustment": None, "adjustment_reason": None},
+        ],
+        "medications": [
+            {"name": "Telmisartan", "dosage": "40mg", "frequency": "OD"},
+            {"name": "Ceftriaxone", "dosage": "1g", "frequency": "BID"},
+        ],
+    },
+    {
+        "file": "p000005.psv",       # 28M, non-septic, young male trauma
+        "name": "Vikram Thakur",
+        "hours": 12,
+        "assigned_to": "Dr. Iyer",
+        "predict": True,
+        "conditions": [
+            {"name": "Post-operative observation", "icd_code": "Z48.89", "type": "chronic"},
+        ],
+        "comorbidities": [],
+        "medications": [
+            {"name": "Paracetamol", "dosage": "1g", "frequency": "TDS"},
+            {"name": "Tramadol", "dosage": "50mg", "frequency": "PRN"},
+        ],
+    },
+    {
+        "file": "p000009.psv",       # 28M, septic at hour 249 → critically ill
+        "name": "Anil Prasad",
+        "hours": 12,
+        "assigned_to": "Dr. Mehta",
+        "predict": True,
+        "conditions": [
+            {"name": "Sepsis", "icd_code": "A41.9", "type": "critical"},
+            {"name": "Acute Kidney Injury", "icd_code": "N17.9", "type": "critical"},
+        ],
+        "comorbidities": [
+            {"name": "Diabetes", "threshold_adjustment": 55,
+             "adjustment_reason": "diabetic_lactate_sensitivity"},
+        ],
+        "medications": [
+            {"name": "Meropenem", "dosage": "1g", "frequency": "TID"},
+            {"name": "Insulin Glargine", "dosage": "20U", "frequency": "OD"},
+            {"name": "Norepinephrine", "dosage": "0.1mcg/kg/min", "frequency": "Infusion"},
+        ],
+    },
+    {
+        "file": "p000018.psv",       # 39M, septic at hour 127
+        "name": "Priya Nair",
+        "hours": 12,
+        "assigned_to": "Dr. Khan",
+        "predict": True,
+        "conditions": [
+            {"name": "Sepsis", "icd_code": "A41.9", "type": "critical"},
+            {"name": "Urinary Tract Infection", "icd_code": "N39.0", "type": "critical"},
+        ],
+        "comorbidities": [
+            {"name": "Chronic Kidney Disease", "threshold_adjustment": None,
+             "adjustment_reason": None},
+        ],
+        "medications": [
+            {"name": "Piperacillin-Tazobactam", "dosage": "4.5g", "frequency": "QID"},
+            {"name": "Furosemide", "dosage": "40mg", "frequency": "BID"},
+        ],
+    },
+    {
+        "file": "p000042.psv",       # 64F, septic at hour 65
+        "name": "Lakshmi Venkatesh",
+        "hours": 12,
+        "assigned_to": "Dr. Rao",
+        "predict": True,
+        "conditions": [
+            {"name": "Sepsis", "icd_code": "A41.9", "type": "critical"},
+        ],
+        "comorbidities": [
+            {"name": "Hypertension", "threshold_adjustment": None, "adjustment_reason": None},
+            {"name": "Diabetes", "threshold_adjustment": 55,
+             "adjustment_reason": "diabetic_lactate_sensitivity"},
+        ],
+        "medications": [
+            {"name": "Metformin", "dosage": "500mg", "frequency": "BID"},
+            {"name": "Amlodipine", "dosage": "5mg", "frequency": "OD"},
+            {"name": "Vancomycin", "dosage": "1g", "frequency": "BID"},
+        ],
+    },
+    {
+        "file": "p000078.psv",       # 57M, septic at hour 96
+        "name": "Rajesh Gupta",
+        "hours": 12,
+        "assigned_to": "Dr. Iyer",
+        "predict": True,
+        "conditions": [
+            {"name": "Sepsis", "icd_code": "A41.9", "type": "critical"},
+            {"name": "Cellulitis", "icd_code": "L03.90", "type": "critical"},
+        ],
+        "comorbidities": [
+            {"name": "COPD", "threshold_adjustment": None, "adjustment_reason": None},
+            {"name": "Hypertension", "threshold_adjustment": None, "adjustment_reason": None},
+        ],
+        "medications": [
+            {"name": "Linezolid", "dosage": "600mg", "frequency": "BID"},
+            {"name": "Salbutamol Nebulization", "dosage": "2.5mg", "frequency": "QID"},
+            {"name": "Losartan", "dosage": "50mg", "frequency": "OD"},
+        ],
+    },
+    {
+        "file": "p000141.psv",       # 78M, septic at hour 53
+        "name": "Mohan Sharma",
+        "hours": 12,
+        "assigned_to": "Dr. Khan",
+        "predict": True,
+        "conditions": [
+            {"name": "Sepsis", "icd_code": "A41.9", "type": "critical"},
+            {"name": "Cholecystitis", "icd_code": "K81.0", "type": "critical"},
+        ],
+        "comorbidities": [
+            {"name": "Atrial Fibrillation", "threshold_adjustment": None,
+             "adjustment_reason": None},
+            {"name": "Diabetes", "threshold_adjustment": 55,
+             "adjustment_reason": "diabetic_lactate_sensitivity"},
+        ],
+        "medications": [
+            {"name": "Apixaban", "dosage": "5mg", "frequency": "BID"},
+            {"name": "Metformin", "dosage": "500mg", "frequency": "BID"},
+            {"name": "Cefoperazone-Sulbactam", "dosage": "1.5g", "frequency": "BID"},
+        ],
+    },
+    {
+        "file": "p000178.psv",       # 43M, septic at hour 89
+        "name": "Deepak Joshi",
+        "hours": 12,
+        "assigned_to": "Dr. Rao",
+        "predict": True,
+        "conditions": [
+            {"name": "Sepsis", "icd_code": "A41.9", "type": "critical"},
+            {"name": "Pneumonia", "icd_code": "J18.9", "type": "critical"},
+        ],
+        "comorbidities": [
+            {"name": "Asthma", "threshold_adjustment": None, "adjustment_reason": None},
+        ],
+        "medications": [
+            {"name": "Meropenem", "dosage": "1g", "frequency": "TID"},
+            {"name": "Montelukast", "dosage": "10mg", "frequency": "OD"},
+            {"name": "Hydrocortisone", "dosage": "100mg", "frequency": "TID"},
+        ],
+    },
 ]
 SAMPLES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "sepsis_samples")
 
@@ -246,15 +371,50 @@ def seed_psv_samples(db, clinicians, created: dict) -> None:
         db.add(patient)
         db.flush()
 
-        ever_septic = int(df["SepsisLabel"].max()) == 1
-        db.add(PatientDisease(
-            patient_id=patient.patient_id,
-            disease_name="Sepsis" if ever_septic else "Post-operative observation",
-            icd_code="A41.9" if ever_septic else "Z48.89",
-            disease_type="critical" if ever_septic else "chronic",
-            diagnosed_at=now - timedelta(hours=len(tail)),
-            is_active=True,
-        ))
+        # Add conditions
+        conditions = spec.get("conditions", [])
+        if not conditions:
+            ever_septic = int(df["SepsisLabel"].max()) == 1
+            conditions = [{"name": "Sepsis" if ever_septic else "Post-operative observation",
+                           "icd_code": "A41.9" if ever_septic else "Z48.89",
+                           "type": "critical" if ever_septic else "chronic"}]
+
+        for cond in conditions:
+            db.add(PatientDisease(
+                patient_id=patient.patient_id,
+                disease_name=cond["name"],
+                icd_code=cond["icd_code"],
+                disease_type=cond["type"],
+                diagnosed_at=now - timedelta(hours=len(tail)),
+                is_active=True,
+            ))
+
+        # Add comorbidities
+        for com in spec.get("comorbidities", []):
+            db.add(PatientComorbidity(
+                patient_id=patient.patient_id,
+                condition_name=com["name"],
+                threshold_adjustment=com.get("threshold_adjustment"),
+                adjustment_reason=com.get("adjustment_reason"),
+            ))
+
+        # Add medications
+        for med in spec.get("medications", []):
+            m = Medication(
+                patient_id=patient.patient_id,
+                name=med["name"],
+                dosage=med["dosage"],
+                frequency=med["frequency"],
+                started_at=now - timedelta(hours=len(tail)),
+            )
+            db.add(m)
+            db.flush()
+            if neo4j.enabled:
+                neo4j.run(cypher.MERGE_MEDICATION_AND_LINK, {
+                    "medication_id": str(m.medication_id), "name": m.name,
+                    "dosage": m.dosage, "frequency": m.frequency,
+                    "patient_id": str(patient.patient_id),
+                })
 
         assignee = clinicians[spec["assigned_to"]]
         db.add(PatientAssignment(patient_id=patient.patient_id,
@@ -268,12 +428,22 @@ def seed_psv_samples(db, clinicians, created: dict) -> None:
                 "bed_number": patient.bed_number, "blood_type": None,
                 "admission_date": patient.admission_date.isoformat(),
             })
-            neo4j.run(cypher.MERGE_DISEASE_AND_LINK % "HAS_CONDITION", {
-                "name": ("Sepsis" if ever_septic else "Post-operative observation"),
-                "icd_code": None, "type": "critical" if ever_septic else "chronic",
-                "specialty": _specialty("Sepsis"),
-                "patient_id": str(patient.patient_id),
-            })
+            for cond in conditions:
+                neo4j.run(cypher.MERGE_DISEASE_AND_LINK % "HAS_CONDITION", {
+                    "name": cond["name"],
+                    "icd_code": cond.get("icd_code"),
+                    "type": cond.get("type", "critical"),
+                    "specialty": _specialty(cond["name"]),
+                    "patient_id": str(patient.patient_id),
+                })
+            for com in spec.get("comorbidities", []):
+                neo4j.run(cypher.MERGE_DISEASE_AND_LINK % "COMORBID_WITH", {
+                    "name": com["name"],
+                    "icd_code": None,
+                    "type": "chronic",
+                    "specialty": _specialty(com["name"]),
+                    "patient_id": str(patient.patient_id),
+                })
             neo4j.run(cypher.ASSIGN_PATIENT_TO_CLINICIAN, {
                 "patient_id": str(patient.patient_id),
                 "clinician_id": str(assignee.clinician_id),
@@ -482,7 +652,7 @@ def main() -> None:
         if neo4j.enabled:
             neo4j.run(cypher.MERGE_SIMILAR_TO, {
                 "patient_a": str(created["ramesh"]["patient"].patient_id),
-                "patient_b": str(created["arjun"]["patient"].patient_id),
+                "patient_b": str(created["sunita"]["patient"].patient_id),
             })
 
         # Persist ALL static seed data BEFORE running predictions so a

@@ -1,45 +1,48 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="100%" height="100%">
   <defs>
-    <linearGradient id="blueBorderGradF" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- Outer Blue Stroke & Metallic Gradients -->
+    <linearGradient id="blueBorderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#0A5080"/>
       <stop offset="50%" stop-color="#0080C0"/>
       <stop offset="100%" stop-color="#083050"/>
     </linearGradient>
 
-    <linearGradient id="silverFillGradF" x1="0%" y1="0%" x2="0%" y2="100%">
+    <linearGradient id="silverFillGrad" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#F2F6F9"/>
       <stop offset="50%" stop-color="#D9E3EA"/>
       <stop offset="100%" stop-color="#B8C8D4"/>
     </linearGradient>
 
-    <radialGradient id="eyeIrisF" cx="50%" cy="50%" r="50%">
+    <radialGradient id="eyeIris" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="#48CAE4"/>
       <stop offset="35%" stop-color="#0077B6"/>
       <stop offset="80%" stop-color="#023E8A"/>
       <stop offset="100%" stop-color="#03045E"/>
     </radialGradient>
 
-    <radialGradient id="eyeScleraF" cx="50%" cy="50%" r="50%">
+    <radialGradient id="eyeSclera" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="#FFFFFF"/>
       <stop offset="70%" stop-color="#EDF5FA"/>
       <stop offset="100%" stop-color="#C5DAE8"/>
     </radialGradient>
   </defs>
 
-  <!-- Rounded App Tile Container for Favicon -->
-  <rect x="4" y="4" width="232" height="232" rx="48" fill="#F8FAFC"/>
-
-  <!-- Main 'M' Structure -->
+  <!-- Main 'M' Outer Metallic Structure -->
   <g fill="none" stroke-linejoin="miter">
+    <!-- Silver Metallic Outer Body of 'M' -->
     <path d="M 36,190 L 36,36 L 86,36 L 120,96 L 154,36 L 204,36 L 204,190 L 168,190 L 168,92 L 134,152 L 106,152 L 72,92 L 72,190 Z" 
-          fill="url(#silverFillGradF)" stroke="url(#blueBorderGradF)" stroke-width="5"/>
-    <path d="M 106,152 L 120,178 L 134,152 Z" fill="url(#silverFillGradF)" stroke="url(#blueBorderGradF)" stroke-width="5"/>
+          fill="url(#silverFillGrad)" stroke="url(#blueBorderGrad)" stroke-width="5"/>
 
-    <!-- Circuit Traces -->
+    <!-- Bottom Center V Point Extension -->
+    <path d="M 106,152 L 120,178 L 134,152 Z" fill="url(#silverFillGrad)" stroke="url(#blueBorderGrad)" stroke-width="5"/>
+
+    <!-- Circuit Lines & Node Points inside Left and Right Stems -->
+    <!-- Left Stem Circuit Trace -->
     <path d="M 54,62 L 54,164" stroke="#0077B6" stroke-width="4.5" stroke-linecap="round"/>
     <circle cx="54" cy="62" r="6" fill="#0080C0" stroke="#FFFFFF" stroke-width="2.5"/>
     <circle cx="54" cy="164" r="6" fill="#0080C0" stroke="#FFFFFF" stroke-width="2.5"/>
 
+    <!-- Right Stem Circuit Trace -->
     <path d="M 186,62 L 186,164" stroke="#0077B6" stroke-width="4.5" stroke-linecap="round"/>
     <circle cx="186" cy="62" r="6" fill="#0080C0" stroke="#FFFFFF" stroke-width="2.5"/>
     <circle cx="186" cy="164" r="6" fill="#0080C0" stroke="#FFFFFF" stroke-width="2.5"/>
@@ -47,12 +50,21 @@
 
   <!-- Central Eye Lens Emblem -->
   <g>
-    <path d="M 44,112 Q 120,52 196,112 Q 120,172 44,112 Z" fill="url(#eyeScleraF)" stroke="#005B94" stroke-width="5"/>
+    <!-- Outer Eye Almond Contour -->
+    <path d="M 44,112 Q 120,52 196,112 Q 120,172 44,112 Z" fill="url(#eyeSclera)" stroke="#005B94" stroke-width="5"/>
     <path d="M 49,112 Q 120,58 191,112 Q 120,166 49,112 Z" fill="none" stroke="#00A8E8" stroke-width="2" opacity="0.9"/>
-    <circle cx="120" cy="112" r="32" fill="url(#eyeIrisF)" stroke="#0096D6" stroke-width="3"/>
+
+    <!-- Iris Ring -->
+    <circle cx="120" cy="112" r="32" fill="url(#eyeIris)" stroke="#0096D6" stroke-width="3"/>
+
+    <!-- Iris Aperture & Tech Concentric Rings -->
     <circle cx="120" cy="112" r="26" fill="none" stroke="#90E0EF" stroke-width="2" stroke-dasharray="4 3"/>
     <circle cx="120" cy="112" r="21" fill="none" stroke="#E0F7FC" stroke-width="1.5" stroke-dasharray="2 3"/>
+
+    <!-- Pupil -->
     <circle cx="120" cy="112" r="15" fill="#03045E"/>
+
+    <!-- Catchlight Reflection Glare -->
     <circle cx="127" cy="104" r="5" fill="#FFFFFF"/>
     <circle cx="112" cy="120" r="2" fill="#FFFFFF" opacity="0.7"/>
   </g>

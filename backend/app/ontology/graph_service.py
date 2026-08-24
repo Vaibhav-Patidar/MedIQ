@@ -109,23 +109,33 @@ def _graph_from_neo4j(patient_id: str) -> dict | None:
         n = entry.get("node")
         if not n:
             return
+        ntype = _node_type(n)
+        if ntype == "VitalReading":
+            return
+        label = _node_label(n)
+        if not label:
+            return
         rel = entry.get("rel") or default_rel
         nid = _node_id(n)
-        nodes.append(_node(nid, _node_type(n), _node_label(n) or nid))
+        nodes.append(_node(nid, ntype, label))
         edges.append(_edge(source or pid, nid, str(rel)))
 
     for entry in row.get("direct", []):
         add_linked(entry, "RELATED_TO")
+
     ps_entries = [e for e in row.get("progressions", []) if e.get("node")]
-    for entry in ps_entries:
-        add_linked(entry, "IN_PROGRESSION")
-    # window edges hang off their progression state
-    for entry in row.get("windows", []):
-        if entry.get("node") and ps_entries:
-            wn = entry["node"]
-            wid = _node_id(wn)
-            nodes.append(_node(wid, _node_type(wn), _node_label(wn) or wid))
-            edges.append(_edge(_node_id(ps_entries[0]["node"]), wid, "OPENS_WINDOW"))
+    # Only keep the most recent progression state to avoid duplicate nodes
+    if ps_entries:
+        latest_ps = ps_entries[0]
+        add_linked(latest_ps, "IN_PROGRESSION")
+        for entry in row.get("windows", []):
+            if entry.get("node"):
+                wn = entry["node"]
+                wid = _node_id(wn)
+                wlabel = _node_label(wn) or "WINDOW"
+                nodes.append(_node(wid, _node_type(wn), wlabel))
+                edges.append(_edge(_node_id(latest_ps["node"]), wid, "OPENS_WINDOW"))
+
     for entry in row.get("interventions", []):
         add_linked(entry, "RECEIVED")
     for entry in row.get("similar", []):
@@ -148,8 +158,6 @@ def _graph_from_neo4j(patient_id: str) -> dict | None:
 
 # ---------------------------------------------------------------------------
 # Path 2: Postgres-FK fallback (ADR-002) — same JSON shape from FK joins.
-# What is lost vs Neo4j: genuine SIMILAR_TO traversal (accepted per ADR-002;
-# PRD F8 allows one hardcoded similar-patient example).
 # ---------------------------------------------------------------------------
 
 
@@ -175,7 +183,7 @@ def _graph_from_postgres_fk(db: Session, patient_id: str) -> dict:
         select(PatientComorbidity).where(PatientComorbidity.patient_id == patient_id)
     ).all()
     for c in comorbidities:
-        cid = f"disease-{c.record_id}"
+        cid = f"comorbidity-{c.record_id}"
         nodes.append(_node(cid, "Disease", c.condition_name))
         edges.append(_edge(pid, cid, "COMORBID_WITH"))
 
@@ -197,16 +205,19 @@ def _graph_from_postgres_fk(db: Session, patient_id: str) -> dict:
             nodes.append(_node(clid, "Clinician", clinician.name))
             edges.append(_edge(pid, clid, "ASSIGNED_TO"))
 
-    states = db.scalars(
-        select(ProgressionState).where(ProgressionState.patient_id == patient_id)
-    ).all()
-    for s in states:
-        sid = str(s.state_id)
-        score = float(s.risk_score) if s.risk_score is not None else 0.0
+    # Only include the latest progression state
+    latest_state = db.scalar(
+        select(ProgressionState)
+        .where(ProgressionState.patient_id == patient_id)
+        .order_by(ProgressionState.timestamp.desc())
+    )
+    if latest_state is not None:
+        sid = str(latest_state.state_id)
+        score = float(latest_state.risk_score) if latest_state.risk_score is not None else 0.0
         nodes.append(_node(sid, "ProgressionState", f"Sepsis risk {score:g}"))
         edges.append(_edge(pid, sid, "IN_PROGRESSION"))
         windows = db.scalars(
-            select(InterventionWindow).where(InterventionWindow.progression_state_id == s.state_id)
+            select(InterventionWindow).where(InterventionWindow.progression_state_id == latest_state.state_id)
         ).all()
         for w in windows:
             wid = str(w.window_id)

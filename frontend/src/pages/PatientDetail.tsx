@@ -126,13 +126,21 @@ export default function PatientDetail() {
     ? undefined // We don't have window_id from prediction; will be null in the modal
     : null;
 
+  const isAlzheimers = Boolean(
+    patient?.conditions?.some((c) => c.name.toLowerCase().includes('alzheimer'))
+  );
+
+  const availableTabs: Tab[] = isAlzheimers
+    ? ['overview', 'history', 'graph', 'imaging']
+    : ['overview', 'history', 'graph'];
+
   return (
     <div className="flex-col">
       <PatientHeader patient={patient} />
 
       {/* Tabs */}
       <div className="tab-bar">
-        {(['overview', 'history', 'graph', 'imaging'] as Tab[]).map((tab) => (
+        {availableTabs.map((tab) => (
           <button
             key={tab}
             className={`tab-btn ${activeTab === tab ? 'active' : ''}`}

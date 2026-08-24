@@ -8,7 +8,7 @@ export default function AppShell() {
   const token = useAuthStore((s) => s.token);
 
   if (!token) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return (
