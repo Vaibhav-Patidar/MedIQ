@@ -144,6 +144,7 @@ class GraphNode(ApiModel):
     id: str
     type: str
     label: str
+    metadata: dict[str, Any] | None = None
 
 
 class GraphEdge(ApiModel):

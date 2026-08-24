@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { post } from '../lib/api';
+import { usePatientsStore } from '../stores/patients';
 import type { PatientDetail, PatientCreate } from '../types';
 
 export default function NewPatient() {
@@ -85,6 +86,7 @@ export default function NewPatient() {
 
     try {
       const result = await post<PatientDetail>('/patients', body);
+      usePatientsStore.getState().setPatient(result.patient_id, result);
       navigate(`/patients/${result.patient_id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create patient record');

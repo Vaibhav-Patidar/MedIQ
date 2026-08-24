@@ -117,8 +117,10 @@
   position: relative;
   z-index: 2;
   max-width: 1200px;
+  width: 100%;
   margin: 0 auto;
   padding: 120px 32px 80px;
+  text-align: left;
 }
 .landing-hero-badge {
   display: inline-flex;
@@ -141,7 +143,8 @@
   line-height: 1.15;
   color: #F5F0E8;
   margin: 0 0 24px;
-  max-width: 600px;
+  max-width: 620px;
+  text-align: left;
 }
 .text-accent {
   color: var(--landing-accent);
@@ -150,11 +153,13 @@
   font-size: 17px;
   line-height: 1.65;
   color: #B0C4BF;
-  max-width: 500px;
+  max-width: 520px;
   margin: 0 0 36px;
+  text-align: left;
 }
 .landing-hero-actions {
   display: flex;
+  justify-content: flex-start;
   gap: 16px;
   flex-wrap: wrap;
 }
@@ -515,9 +520,17 @@
 }
 
 /* ─── FAQ ─── */
+#faq {
+  text-align: center;
+}
+#faq .landing-section-label,
+#faq .landing-section-heading {
+  text-align: center;
+}
 .landing-faq-list {
-  max-width: 700px;
-  margin-top: 32px;
+  max-width: 800px;
+  margin: 36px auto 0;
+  text-align: left;
 }
 .faq-item {
   border: 1px solid rgba(27,45,42,0.08);
@@ -557,26 +570,27 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── CTA Footer ─── */
+/* ─── CTA Footer (Full Width Edge-to-Edge) ─── */
 .landing-cta-footer {
   background: var(--landing-accent);
   text-align: center;
-  padding: 72px 32px;
-  border-radius: 20px;
-  max-width: 1200px;
-  margin: 0 auto 48px;
+  padding: 96px 32px;
+  border-radius: 0;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
 }
 .landing-cta-footer h2 {
-  font-size: clamp(28px, 4vw, 38px);
+  font-size: clamp(28px, 4vw, 42px);
   font-weight: 800;
   color: var(--landing-dark);
   margin: 0 0 16px;
 }
 .landing-cta-footer p {
-  font-size: 15px;
-  color: rgba(27,45,42,0.7);
-  max-width: 500px;
-  margin: 0 auto 28px;
+  font-size: 16px;
+  color: rgba(27,45,42,0.78);
+  max-width: 540px;
+  margin: 0 auto 32px;
   line-height: 1.6;
 }
 .landing-cta-footer-actions {

@@ -198,6 +198,7 @@ export interface GraphNode {
   id: string;
   type: string;   // Patient, Disease, Clinician, Medication, etc.
   label: string;
+  metadata?: Record<string, any>;
 }
 
 export interface GraphEdge {

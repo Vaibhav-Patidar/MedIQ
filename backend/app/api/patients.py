@@ -166,27 +166,37 @@ def list_patients(
     assignments = {str(a.patient_id): a for a in db.scalars(select(PatientAssignment))}
     clinicians = {str(c.clinician_id): c for c in db.scalars(select(Clinician))}
 
+    # Batch-load all diseases and comorbidities to avoid N+1 queries
+    all_diseases = db.scalars(select(PatientDisease)).all()
+    diseases_by_patient: dict[str, list[str]] = {}
+    for d in all_diseases:
+        diseases_by_patient.setdefault(str(d.patient_id), []).append(d.disease_name)
+
+    all_comorbidities = db.scalars(select(PatientComorbidity)).all()
+    comorbidities_by_patient: dict[str, list[str]] = {}
+    for c in all_comorbidities:
+        comorbidities_by_patient.setdefault(str(c.patient_id), []).append(c.condition_name)
+
     items = []
     for p in patients:
-        state = latest_state.get(str(p.patient_id))
+        pid = str(p.patient_id)
+        state = latest_state.get(pid)
         risk = float(state.risk_score) if state and state.risk_score is not None else None
         if ward is not None and p.ward != ward:
             continue
         if risk_min is not None and (risk is None or risk < risk_min):
             continue
-        assignment = assignments.get(str(p.patient_id))
+        assignment = assignments.get(pid)
         doctor = clinicians.get(str(assignment.clinician_id)) if assignment else None
         items.append(PatientListItem(
-            patient_id=str(p.patient_id),
+            patient_id=pid,
             name=p.name,
             age=p.age,
             sex=p.sex,
             ward=p.ward,
             bed_number=p.bed_number,
-            conditions=[d.disease_name for d in db.scalars(select(PatientDisease).where(
-                PatientDisease.patient_id == p.patient_id)).all()],
-            comorbidities=[c.condition_name for c in db.scalars(select(PatientComorbidity).where(
-                PatientComorbidity.patient_id == p.patient_id)).all()],
+            conditions=diseases_by_patient.get(pid, []),
+            comorbidities=comorbidities_by_patient.get(pid, []),
             current_risk_score=risk,
             window_open=bool(state.window_open) if state else False,
             assigned_doctor=doctor.name if doctor else None,
@@ -209,6 +219,9 @@ def create_patient(body: PatientCreateRequest, db: Session = Depends(get_db)):
     db.flush()
     _replace_collections(db, patient, body)
     _sync_patient_to_neo4j(db, patient)
+
+    # Explicit commit so the new patient is immediately queryable across all sessions
+    db.commit()
     return build_patient_detail(db, patient)
 
 

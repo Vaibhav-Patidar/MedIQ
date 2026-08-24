@@ -82,22 +82,22 @@ const STEPS = [
 
 const SECURITY = [
   {
-    icon: '🔒',
+    icon: '',
     title: 'Encrypted end-to-end',
     desc: 'TLS 1.3 in transit, AES-256 at rest. PHI never leaves the hospital network in on-prem mode.',
   },
   {
-    icon: '📋',
+    icon: '',
     title: 'Immutable audit logs',
     desc: 'Who saw what, who acknowledged which alert, which model version made which prediction — forever queryable.',
   },
   {
-    icon: '🧠',
+    icon: '',
     title: 'Explainable by default',
     desc: 'Feature-level attribution ships with every risk score, so clinicians can challenge the model — not obey it.',
   },
   {
-    icon: '☁️',
+    icon: '',
     title: 'Deploy anywhere',
     desc: 'Runs on hospital-owned Kubernetes or air-gapped appliances. Cloud is optional, never required.',
   },
@@ -290,7 +290,7 @@ export default function Landing() {
           <div className="testimonial-quote">
             <p>
               "The sepsis window opened <span className="text-accent">six
-              hours before</span> the lab would have flagged her. That's the difference
+                hours before</span> the lab would have flagged her. That's the difference
               between a routine night and a code blue."
             </p>
             <div className="testimonial-author">

@@ -250,7 +250,7 @@ export default function PatientDetail() {
       )}
 
       {activeTab === 'history' && <HistoryTab patientId={id!} />}
-      {activeTab === 'graph' && <GraphTab key={graphKey} patientId={id!} />}
+      {activeTab === 'graph' && <GraphTab key={graphKey} patientId={id!} patient={patient} />}
       {activeTab === 'imaging' && <ImagingTab />}
 
       {/* ── Intervention Modal ── */}

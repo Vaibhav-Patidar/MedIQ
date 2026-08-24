@@ -150,6 +150,40 @@ export default function PatientHeader({ patient, prediction, onIntervene }: Prop
                 </span>
               ))}
             </div>
+
+            {/* Active Medications Row */}
+            {patient.medications && patient.medications.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>medication</span>
+                  Rx:
+                </span>
+                {patient.medications.slice(0, 3).map((m, i) => (
+                  <span
+                    key={`med-${i}`}
+                    className="badge"
+                    style={{
+                      background: '#e6f4ea',
+                      color: '#137333',
+                      border: '1px solid #ceead6',
+                      padding: '3px 8px',
+                      fontSize: 11,
+                      fontWeight: 600,
+                    }}
+                  >
+                    💊 {m.name} {m.dosage ? `(${m.dosage})` : ''} {m.frequency ? `• ${m.frequency}` : ''}
+                  </span>
+                ))}
+                {patient.medications.length > 3 && (
+                  <span
+                    className="badge badge-neutral"
+                    style={{ padding: '3px 8px', fontSize: 11, fontWeight: 600 }}
+                  >
+                    +{patient.medications.length - 3} more
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
