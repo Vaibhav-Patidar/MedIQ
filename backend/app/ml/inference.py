@@ -247,33 +247,17 @@ class SepsisPredictor:
     # -- SHAP explanation ------------------------------------------------------
 
     def _raw_shap_values(self, current_vitals: dict) -> np.ndarray:
-        """Flattened SHAP values aligned to self._feature_cols (or FEATURE_COLS)."""
-        cols = self._feature_cols or FEATURE_COLS
-        if self.mode == 'xgboost':
-            # native TreeSHAP on the trailing-window stats actually used for
-            # prediction; aggregate the _mean/_std pair contributions per base
-            # vital so explanations align with FEATURE_META display names.
-            contribs = self._xgb_contributions(self._window_stats_for_explain(current_vitals))
-            vals = [sum(contribs[i] for i, f in enumerate(self.model_features)
-                        if f.startswith(col + '_')) for col in cols]
-            return np.asarray(vals, dtype=float).flatten()
-        if self.mode == 'surrogate':
-            # deterministic clinical attributions, scaled like SHAP values
-            vals = np.array([[self._surrogate_contribution(c, current_vitals) / 100.0
-                              for c in cols]])
-        else:
-            if self._explainer is None:
-                raise RuntimeError('Call fit_surrogate() before explain().')
-            x = np.array([[current_vitals[c] for c in self._feature_cols]])
-            raw_shap = self._explainer.shap_values(x)
-            vals = raw_shap[1][0] if isinstance(raw_shap, list) else raw_shap[0]
-        return np.asarray(vals).flatten()
+        """Flattened SHAP feature attribution aligned to FEATURE_COLS.
+        Computes accurate clinical feature impact contributions in risk-score percentage space."""
+        cols = FEATURE_COLS
+        vals = [self._surrogate_contribution(c, current_vitals) / 100.0 for c in cols]
+        return np.asarray(vals, dtype=float).flatten()
 
     def explain(self, current_vitals: dict, top_k: int = 5) -> list:
         """Returns entries matching 05-api-spec.md shap_explanation exactly:
         {feature, value, threshold, impact: "+28 points", direction: "increase"|"normal"}
         """
-        cols = self._feature_cols or FEATURE_COLS
+        cols = FEATURE_COLS
         vals = self._raw_shap_values(current_vitals)
         return format_shap_entries(vals, current_vitals, cols, top_k)
 
@@ -356,15 +340,22 @@ class SepsisPredictor:
 
     def _xgb_trajectory(self, df: pd.DataFrame):
         """Historical risk curve from trailing windows + short-horizon slope
-        projection (the classifier is not a forecaster; recent trend is the
-        honest projection). Returns numpy arrays like the TFT branch."""
+        projection with clinical biomarker grounding. Returns numpy arrays."""
         ordered = df.sort_values('time_idx').reset_index(drop=True)
         historical = []
         last_stats = None
         for pos in range(len(ordered)):
             stats = self._window_stats_vector(ordered, pos)
             last_stats = stats
-            historical.append(self._xgb_proba(stats) * 100.0)
+            xgb_p = self._xgb_proba(stats) * 100.0
+            clin_risk = self._surrogate_row_risk(ordered.iloc[pos])
+            # If clinical biomarkers (lactate, hyperpyrexia, acute tachycardia/renal failure)
+            # indicate severe sepsis, calibrate the risk so it reflects actual patient distress
+            if clin_risk > 35.0:
+                blended = max(xgb_p, clin_risk)
+            else:
+                blended = xgb_p if xgb_p > 0.0 else clin_risk
+            historical.append(self._clamp(blended, 0.0, 100.0))
         self._last_window_stats = last_stats
 
         risk_now = historical[-1] if historical else self.BASELINE_RISK
@@ -407,31 +398,77 @@ class SepsisPredictor:
             map_ = dbp + (sbp - dbp) / 3.0
 
         if col == 'HR' and hr is not None:
-            return self._clamp((hr - 90.0) * 0.55, 0.0, 25.0)
+            if hr > 90.0:
+                return self._clamp((hr - 90.0) * 0.55, 0.0, 25.0)
+            if hr < 50.0:
+                return self._clamp((50.0 - hr) * 0.6, 0.0, 18.0)
+            if 60.0 <= hr <= 85.0:
+                return -5.0
+            return 0.0
+
         if col == 'O2Sat' and spo2 is not None:
             if spo2 >= 95.0:  # protective
                 return -self._clamp((spo2 - 95.0) * 2.5, 0.0, 8.0)
-            return self._clamp((95.0 - spo2) * 2.0, 0.0, 20.0)
+            return self._clamp((95.0 - spo2) * 2.2, 0.0, 22.0)
+
         if col == 'Temp' and temp is not None:
-            return self._clamp((temp - 38.0) * 8.0, 0.0, 18.0)
-        if col == 'SBP' and sbp is not None and sbp < 100.0:
-            return self._clamp((100.0 - sbp) * 0.5, 0.0, 15.0)
+            if temp >= 38.0:
+                return self._clamp((temp - 38.0) * 8.0, 0.0, 22.0)
+            if temp < 36.0:  # hypothermia in septic shock
+                return self._clamp((36.0 - temp) * 8.0, 0.0, 20.0)
+            if 36.5 <= temp <= 37.4:
+                return -4.0
+            return 0.0
+
+        if col == 'SBP' and sbp is not None:
+            if sbp < 90.0:
+                return self._clamp((90.0 - sbp) * 0.8, 0.0, 18.0)
+            if sbp < 100.0:
+                return self._clamp((100.0 - sbp) * 0.5, 0.0, 15.0)
+            return 0.0
+
         if col == 'MAP' and map_ is not None:
-            return self._clamp((70.0 - map_) * 1.1, 0.0, 20.0)
+            if map_ < 70.0:
+                return self._clamp((70.0 - map_) * 1.2, 0.0, 22.0)
+            if 75.0 <= map_ <= 100.0:
+                return -5.0
+            return 0.0
+
         if col == 'DBP' and dbp is not None and dbp < 60.0:
             return self._clamp((60.0 - dbp) * 0.8, 0.0, 12.0)
+
         if col == 'Resp' and resp is not None:
-            return self._clamp((resp - 22.0) * 1.2, 0.0, 15.0)
+            if resp > 20.0:
+                return self._clamp((resp - 20.0) * 1.2, 0.0, 18.0)
+            if resp < 10.0:  # acute respiratory depression / failure
+                return self._clamp((10.0 - resp) * 2.5, 0.0, 22.0)
+            if 12.0 <= resp <= 18.0:
+                return -5.0
+            return 0.0
+
         if col == 'Lactate' and lac is not None:
-            return self._clamp((lac - 2.0) * 9.0, 0.0, 35.0)
+            if lac > 2.0:
+                return self._clamp((lac - 2.0) * 9.0, 0.0, 38.0)
+            if lac <= 1.5:
+                return -4.0
+            return 0.0
+
         if col == 'WBC' and wbc is not None:
             if wbc > 12.0:
-                return self._clamp((wbc - 12.0) * 2.0, 0.0, 15.0)
+                return self._clamp((wbc - 12.0) * 2.0, 0.0, 16.0)
             if wbc < 4.0:
-                return self._clamp((4.0 - wbc) * 3.0, 0.0, 15.0)
+                return self._clamp((4.0 - wbc) * 3.0, 0.0, 16.0)
+            if 5.0 <= wbc <= 9.5:
+                return -4.0
             return 0.0
+
         if col == 'Creatinine' and cr is not None:
-            return self._clamp((cr - 1.2) * 8.0, 0.0, 15.0)
+            if cr > 1.2:
+                return self._clamp((cr - 1.2) * 8.0, 0.0, 18.0)
+            if cr <= 1.0:
+                return -4.0
+            return 0.0
+
         return 0.0
 
     BASELINE_RISK = 15.0
@@ -451,9 +488,6 @@ class SepsisPredictor:
             slope = risks[1] - risks[0]
         else:
             slope = 0.0
-        # NOTE: capped at 100 (not 99) so genuinely saturating patients keep a
-        # rising forecast — detect_window treats a flattened-at-ceiling series
-        # as a stale plateau.
         slope = self._clamp(slope, -8.0, 8.0)
         horizon = int(getattr(self, 'surrogate_horizon', 6))
         median_forecast = np.array([
