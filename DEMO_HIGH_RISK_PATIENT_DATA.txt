@@ -1,13 +1,13 @@
 ================================================================================
-  MedIQ — HACKATHON LIVE DEMO CHEAT SHEET (HIGH-RISK & LOW-RISK PROFILES)
+  MedIQ — HACKATHON LIVE DEMO CHEAT SHEET (HOURLY TELEMETRY DATA)
 ================================================================================
 
-Use these exact clinical values to demonstrate both:
-1. CASE A: GUARANTEED CRITICAL RISK PATIENT (99% Risk, Therapeutic Window OPEN)
-2. CASE B: GUARANTEED LOW RISK CONTROL PATIENT (35% Risk, Protective SHAP Drivers)
+This document contains full hour-by-hour vital readings (Hour 1 to Hour 4) for:
+1. 🔴 CASE A: Ananya Sharma (Guaranteed CRITICAL Sepsis - Decompensating)
+2. 🟢 CASE B: Rohan Verma (Guaranteed LOW RISK Control - Stable)
 
 ================================================================================
-🔴 CASE A: GUARANTEED CRITICAL SEPSIS (Risk: ~99%, Urgency: CRITICAL)
+🔴 CASE A: ANANYA SHARMA (CRITICAL SEPSIS — DECOMPENSATING TRAJECTORY)
 ================================================================================
 
 🏥 1. PATIENT REGISTRATION:
@@ -18,22 +18,61 @@ Use these exact clinical values to demonstrate both:
 • Bed Number:          12
 • Conditions:          Type 2 Diabetes Mellitus (E11.9), Hypertension (I10)
 
-📈 2. TELEMETRY & VITALS (Click "Add Vitals"):
-• Heart Rate (HR):       128 bpm        (Severe Tachycardia)
-• Systolic BP (SBP):     80 mmHg        (Septic Shock Hypotension)
-• Diastolic BP (DBP):    46 mmHg        (MAP = 57.3 mmHg < 70 threshold)
-• Respiration (RR):      28 breaths/min (Tachypnea)
-• Temperature:           39.9 °C        (High-grade fever spike)
-• SpO2:                  88 %           (Tissue Hypoxia)
-• WBC Count:             21.0 x10^9/L   (Severe leukocytosis)
-• Serum Lactate:         5.4 mmol/L     (Severe anaerobic acidosis)
-• Serum Creatinine:      2.6 mg/dL      (Acute Kidney Injury)
+--------------------------------------------------------------------------------
+📈 2. HOURLY TELEMETRY DATA (Enter one by one or sequential):
+--------------------------------------------------------------------------------
 
-🎯 3. EXPECTED LIVE UI OUTPUT:
+[ HOUR 1 — Baseline / Onset ]:
+• Heart Rate (HR):       105 bpm
+• Systolic BP (SBP):     100 mmHg
+• Diastolic BP (DBP):    62 mmHg
+• Respiration (RR):      22 breaths/min
+• Temperature:           38.4 °C
+• SpO2:                  94 %
+• WBC Count:             13.8 x10^9/L
+• Serum Lactate:         2.8 mmol/L
+• Serum Creatinine:      1.5 mg/dL
+
+[ HOUR 2 — Early Sepsis Watch ]:
+• Heart Rate (HR):       114 bpm
+• Systolic BP (SBP):     94 mmHg
+• Diastolic BP (DBP):    56 mmHg
+• Respiration (RR):      24 breaths/min
+• Temperature:           38.9 °C
+• SpO2:                  92 %
+• WBC Count:             15.5 x10^9/L
+• Serum Lactate:         3.6 mmol/L
+• Serum Creatinine:      1.8 mg/dL
+
+[ HOUR 3 — Moderate Decompensation ]:
+• Heart Rate (HR):       122 bpm
+• Systolic BP (SBP):     86 mmHg
+• Diastolic BP (DBP):    50 mmHg
+• Respiration (RR):      26 breaths/min
+• Temperature:           39.4 °C
+• SpO2:                  90 %
+• WBC Count:             18.2 x10^9/L
+• Serum Lactate:         4.5 mmol/L
+• Serum Creatinine:      2.2 mg/dL
+
+[ HOUR 4 — Acute Septic Shock / Threshold Breach ]:
+• Heart Rate (HR):       128 bpm
+• Systolic BP (SBP):     80 mmHg
+• Diastolic BP (DBP):    46 mmHg
+• Respiration (RR):      28 breaths/min
+• Temperature:           39.9 °C
+• SpO2:                  88 %
+• WBC Count:             21.0 x10^9/L
+• Serum Lactate:         5.4 mmol/L
+• Serum Creatinine:      2.6 mg/dL
+
+--------------------------------------------------------------------------------
+🎯 3. EXPECTED LIVE UI OUTPUT (Case A):
+--------------------------------------------------------------------------------
 • Sepsis Risk Score:   99.0% (Critical Red Gauge)
 • Dynamic Threshold:   55.0% (Personalized Diabetic Lactate Threshold)
 • Urgency Badge:       CRITICAL (Pulsing Red)
-• Therapeutic Window:  ACTIVE / OPEN (3-Hour Golden Hour Resuscitation Bundle)
+• Therapeutic Window:  ACTIVE / OPEN (3-Hour Resuscitation Bundle Countdown)
 • TreeSHAP Drivers:
   - Lactate (5.4 mmol/L)      -> +31 points ↑ (Dominant risk driver)
   - Heart Rate (128 bpm)      -> +21 points ↑
@@ -44,29 +83,68 @@ Use these exact clinical values to demonstrate both:
 
 
 ================================================================================
-🟢 CASE B: GUARANTEED LOW-RISK STABLE CONTROL (Risk: ~35%, Urgency: LOW)
+🟢 CASE B: ROHAN VERMA (STABLE CONTROL — HEALTHY TRAJECTORY)
 ================================================================================
 
 🏥 1. PATIENT REGISTRATION:
 • Full Name:           Rohan Verma
 • Age:                 29
 • Gender:              Male (M)
-• Ward:                ICU-1 (or General Ward)
+• Ward:                ICU-1
 • Bed Number:          04
 • Conditions:          None (or leave empty)
 
-📈 2. TELEMETRY & VITALS (Click "Add Vitals"):
-• Heart Rate (HR):       68 bpm         (Normal sinus rhythm)
-• Systolic BP (SBP):     118 mmHg       (Normotensive)
-• Diastolic BP (DBP):    76 mmHg        (MAP = 90.0 mmHg)
-• Respiration (RR):      14 breaths/min (Eupnea)
-• Temperature:           36.8 °C        (Afebrile / Normothermic)
-• SpO2:                  99 %           (Optimal oxygen saturation)
-• WBC Count:             6.5 x10^9/L    (Normal immune cell range)
-• Serum Lactate:         0.8 mmol/L     (Normal aerobic metabolism)
-• Serum Creatinine:      0.8 mg/dL      (Normal renal clearance)
+--------------------------------------------------------------------------------
+📈 2. HOURLY TELEMETRY DATA (Enter one by one or sequential):
+--------------------------------------------------------------------------------
 
-🎯 3. EXPECTED LIVE UI OUTPUT:
+[ HOUR 1 — Normal Baseline ]:
+• Heart Rate (HR):       68 bpm
+• Systolic BP (SBP):     118 mmHg
+• Diastolic BP (DBP):    76 mmHg
+• Respiration (RR):      14 breaths/min
+• Temperature:           36.8 °C
+• SpO2:                  99 %
+• WBC Count:             6.5 x10^9/L
+• Serum Lactate:         0.8 mmol/L
+• Serum Creatinine:      0.8 mg/dL
+
+[ HOUR 2 — Stable Telemetry ]:
+• Heart Rate (HR):       70 bpm
+• Systolic BP (SBP):     120 mmHg
+• Diastolic BP (DBP):    78 mmHg
+• Respiration (RR):      15 breaths/min
+• Temperature:           36.7 °C
+• SpO2:                  99 %
+• WBC Count:             6.2 x10^9/L
+• Serum Lactate:         0.8 mmol/L
+• Serum Creatinine:      0.8 mg/dL
+
+[ HOUR 3 — Stable Telemetry ]:
+• Heart Rate (HR):       72 bpm
+• Systolic BP (SBP):     116 mmHg
+• Diastolic BP (DBP):    74 mmHg
+• Respiration (RR):      14 breaths/min
+• Temperature:           36.9 °C
+• SpO2:                  98 %
+• WBC Count:             6.4 x10^9/L
+• Serum Lactate:         0.9 mmol/L
+• Serum Creatinine:      0.7 mg/dL
+
+[ HOUR 4 — Stable Telemetry ]:
+• Heart Rate (HR):       69 bpm
+• Systolic BP (SBP):     122 mmHg
+• Diastolic BP (DBP):    78 mmHg
+• Respiration (RR):      14 breaths/min
+• Temperature:           36.8 °C
+• SpO2:                  99 %
+• WBC Count:             6.1 x10^9/L
+• Serum Lactate:         0.8 mmol/L
+• Serum Creatinine:      0.8 mg/dL
+
+--------------------------------------------------------------------------------
+🎯 3. EXPECTED LIVE UI OUTPUT (Case B):
+--------------------------------------------------------------------------------
 • Sepsis Risk Score:   35.4% (Healthy Green/Neutral Gauge)
 • Dynamic Threshold:   65.0% (Standard Non-Diabetic Baseline Threshold)
 • Urgency Badge:       LOW (Green Stable Status)
